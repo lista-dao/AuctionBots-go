@@ -19,6 +19,7 @@ type contracter interface {
 	DogContract() common.Address
 	HayContract() common.Address
 	Token0Contract() common.Address
+	FlashloanContract() common.Address
 }
 
 type contracts struct {
@@ -29,6 +30,9 @@ type contracts struct {
 	DogAddr         *common.Address
 	SpotAddr        *common.Address
 	Token0Addr      *common.Address
+	FlashloanAddr   *common.Address
+
+	CollateralsAddr []common.Address
 
 	populated bool
 	o         sync.Once
@@ -36,11 +40,13 @@ type contracts struct {
 
 type contractsParams struct {
 	interaction string
-	vat         string
-	hay         string
-	dog         string
-	spot        string
-	token0      string
+	vat         string `populate:"required"`
+	hay         string `populate:"required"`
+	dog         string `populate:"required"`
+	spot        string `populate:"required"`
+	token0      string `populate:"required"`
+	flashloan   string `populate:"required"`
+	collaterals string `populate:"required" type:"array"`
 }
 
 func (contr *contracts) validate() error {
@@ -54,6 +60,7 @@ func (contr *contracts) populate() {
 	flag.StringVar(&contr.hay, "HAY", "", "hay contract")
 	flag.StringVar(&contr.spot, "SPOT", "", "spot contract")
 	flag.StringVar(&contr.token0, "TOKEN0", "", "token 0 contract")
+	flag.StringVar(&contr.token0, "TOKEN0", "", "token 0 contract")
 	flag.Parse()
 }
 
@@ -62,32 +69,74 @@ func (params contractsParams) check() error {
 	typ := val.Type()
 	for ind := 0; ind < val.NumField(); ind++ {
 		field := val.Field(ind)
-		if !common.IsHexAddress(field.String()) {
-			return fmt.Errorf("contract %s address is bad", typ.Field(ind).Name)
+		fieldTyp := typ.Field(ind)
+		populateTag := fieldTyp.Tag.Get("populate")
+		if field.IsZero() && populateTag != "required" {
+			continue
 		}
+
+		typeTag := fieldTyp.Tag.Get("type")
+		switch typeTag {
+		case "array":
+			addresses := strings.Split(field.String(), ",")
+			for ind := range addresses {
+				if !common.IsHexAddress(addresses[ind]) {
+					return fmt.Errorf("contract %s address is bad", fieldTyp.Name)
+				}
+			}
+
+		default:
+			if !common.IsHexAddress(field.String()) {
+				return fmt.Errorf("contract %s address is bad", fieldTyp.Name)
+			}
+		}
+
 	}
 
 	return nil
 }
 
-// populateContracts - populate contracts into contracts struct
-// using contracts params
+// populateContracts - populate contracts struct
+// using contractsParams
 func (contr *contracts) populateContracts() {
 	contr.o.Do(func() {
 		contr.populated = true
 		valParams := reflect.ValueOf(contr.contractsParams)
 		typParams := valParams.Type()
-		val := reflect.Indirect(reflect.ValueOf(contr))
+		valContr := reflect.Indirect(reflect.ValueOf(contr))
 		for ind := 0; ind < valParams.NumField(); ind++ {
-			fieldName := fmt.Sprintf("%sAddr", strings.Title(typParams.Field(ind).Name))
-			valField := val.FieldByName(fieldName)
-			valField.Set(reflect.New(reflect.TypeOf(common.Address{})))
-			valField.MethodByName("SetBytes").
-				Call(
-					[]reflect.Value{
-						reflect.ValueOf(common.FromHex(valParams.Field(ind).String())),
-					},
-				)
+			fieldTyp := typParams.Field(ind)
+			fieldVal := valParams.Field(ind)
+			contrFieldName := fmt.Sprintf("%sAddr", strings.Title(fieldTyp.Name))
+			contrFieldVal := valContr.FieldByName(contrFieldName)
+
+			typeTag := fieldTyp.Tag.Get("type")
+			switch typeTag {
+			case "array":
+				if contrFieldVal.Kind() != reflect.Slice {
+					panic(fmt.Sprintf("%s is not array", contrFieldName))
+				}
+				addresses := strings.Split(fieldVal.String(), ",")
+				for ind := range addresses {
+					val := reflect.New(reflect.TypeOf(common.Address{}))
+					val.MethodByName("SetBytes").
+						Call(
+							[]reflect.Value{
+								reflect.ValueOf(common.FromHex(addresses[ind])),
+							},
+						)
+					reflect.Append(contrFieldVal, reflect.Indirect(val))
+				}
+
+			default:
+				contrFieldVal.Set(reflect.New(reflect.TypeOf(common.Address{})))
+				contrFieldVal.MethodByName("SetBytes").
+					Call(
+						[]reflect.Value{
+							reflect.ValueOf(common.FromHex(fieldVal.String())),
+						},
+					)
+			}
 		}
 	})
 }
@@ -132,4 +181,11 @@ func (contr *contracts) Token0Contract() common.Address {
 		contr.populateContracts()
 	}
 	return *contr.Token0Addr
+}
+
+func (contr *contracts) FlashloanContract() common.Address {
+	if !contr.populated {
+		contr.populateContracts()
+	}
+	return *contr.FlashloanAddr
 }

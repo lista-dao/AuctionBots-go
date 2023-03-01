@@ -6,7 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	daov2 "github.com/helio-money/auctionbot/internal/dao/v2"
+	"github.com/helio-money/auctionbot/internal/dao/v2/clipper"
+	"github.com/helio-money/auctionbot/internal/dao/v2/interaction"
 	"github.com/helio-money/auctionbot/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron"
@@ -50,8 +51,8 @@ type resetJob struct {
 	collateralAddr common.Address
 	interactAddr   common.Address
 
-	inter   *daov2.Interaction
-	clipper *daov2.Clipper
+	inter   *interaction.Interaction
+	clipper *clipper.Clipper
 
 	withWait bool
 }
@@ -62,7 +63,7 @@ func (j *resetJob) init() {
 	}
 	var err error
 
-	j.inter, err = daov2.NewInteraction(j.interactAddr, j.ethCli)
+	j.inter, err = interaction.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +74,7 @@ func (j *resetJob) init() {
 		panic(err)
 	}
 
-	j.clipper, err = daov2.NewClipper(collatDetails.Clip, j.ethCli)
+	j.clipper, err = clipper.NewClipper(collatDetails.Clip, j.ethCli)
 	if err != nil {
 		panic(err)
 	}
@@ -107,6 +108,8 @@ func (j *resetJob) processAuction(auctionID *big.Int) {
 
 	log = log.WithFields(logrus.Fields{
 		"needs_redo": status.NeedsRedo,
+		"lot":        status.Lot.String(),
+		"liq_price":  status.Price,
 	})
 
 	if status.NeedsRedo {

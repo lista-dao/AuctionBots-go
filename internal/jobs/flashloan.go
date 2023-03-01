@@ -2,23 +2,23 @@ package jobs
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	daov1 "github.com/helio-money/auctionbot/internal/dao/v1"
-	daov2 "github.com/helio-money/auctionbot/internal/dao/v2"
 	"github.com/helio-money/auctionbot/internal/dao/v2/clipper"
+	"github.com/helio-money/auctionbot/internal/dao/v2/flash/flashbuy"
+	"github.com/helio-money/auctionbot/internal/dao/v2/flash/interfaces/ierc3156flashlender"
+
 	"github.com/helio-money/auctionbot/internal/dao/v2/interaction"
 	"github.com/helio-money/auctionbot/internal/wallet"
-	"github.com/pkg/errors"
 	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
 	"math/big"
 )
 
-func NewBuyAuctionJob(
+func NewBuyFlashAuctionJob(
 	ctx context.Context,
 	log *logrus.Logger,
 	wall wallet.Walleter,
@@ -28,7 +28,7 @@ func NewBuyAuctionJob(
 	hayAddr common.Address,
 	withWait bool,
 ) cron.Job {
-	job := &buyAuctionJob{
+	job := &buyFlashAuctionJob{
 		ctx:            ctx,
 		ethCli:         ethCli,
 		interactAddr:   interactAddr,
@@ -45,9 +45,9 @@ func NewBuyAuctionJob(
 	return job
 }
 
-var _ cron.Job = (*buyAuctionJob)(nil)
+var _ cron.Job = (*buyFlashAuctionJob)(nil)
 
-type buyAuctionJob struct {
+type buyFlashAuctionJob struct {
 	ctx context.Context
 
 	wallet         wallet.Walleter
@@ -57,22 +57,25 @@ type buyAuctionJob struct {
 	hayAddr        common.Address
 	interactAddr   common.Address
 	spotAddr       common.Address
+	flashbutAddr   common.Address
 	collateralIlk  [32]byte
+
+	flash  *flashbuy.Flashbuy
+	lender *ierc3156flashlender.Ierc3156flashlender
 
 	inter   *interaction.Interaction
 	clipper *clipper.Clipper
 	oracle  *daov1.MockOracle
-	hay     *daov2.Token
 
 	withWait bool
 }
 
-func (j *buyAuctionJob) init() {
+func (j *buyFlashAuctionJob) init() {
 	if j == nil {
 		panic("buy auction job is null")
 	}
 	var err error
-
+	j.flash, _ = flashbuy.NewFlashbuy(common.HexToAddress("0xcac83ED872E6996C6188ca310F57B78C760Db896"), j.ethCli)
 	j.inter, err = interaction.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
@@ -100,24 +103,6 @@ func (j *buyAuctionJob) init() {
 		panic(err)
 	}
 
-	j.hay, err = daov2.NewToken(j.hayAddr, j.ethCli)
-	if err != nil {
-		panic(err)
-	}
-
-	allowance, err := j.hay.Allowance(&bind.CallOpts{}, j.wallet.Address(), j.interactAddr)
-	if err != nil {
-		panic(err)
-	}
-
-	if allowance.Cmp(abi.MaxUint256) != 0 {
-		j.log.Debug("approving hay to interactor")
-		if err := j.approveTokens(); err != nil {
-			panic(err)
-		}
-		j.log.Debug("hay approved")
-	}
-
 	spotIlk, err := spot.Ilks(&bind.CallOpts{}, collatDetails.Ilk)
 	if err != nil {
 		panic(err)
@@ -129,7 +114,7 @@ func (j *buyAuctionJob) init() {
 	}
 }
 
-func (j *buyAuctionJob) Run() {
+func (j *buyFlashAuctionJob) Run() {
 	j.log.Debug("start")
 
 	j.init()
@@ -144,7 +129,7 @@ func (j *buyAuctionJob) Run() {
 	}
 }
 
-func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
+func (j *buyFlashAuctionJob) processAuction(auctionID *big.Int) {
 	log := j.log.WithFields(logrus.Fields{
 		"auction_id": auctionID.String(),
 	})
@@ -176,48 +161,40 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 	// check if auction lot is 0 or auction needs redo or
 	// auction collateral price is higher than actual
 	if status.NeedsRedo ||
-		status.Lot.Cmp(big.NewInt(0)) < 0 ||
-		auctionPrice.Cmp(calcPercent(actualPrice, big.NewInt(95))) >= 0 {
+		status.Lot.Cmp(big.NewInt(0)) < 0 {
+		//auctionPrice.Cmp(calcPercent(actualPrice, big.NewInt(95))) >= 0
 		log.Debug("auctions is skipped")
 		return
 	}
 
-	balance, err := j.hay.BalanceOf(&bind.CallOpts{}, j.wallet.Address())
-	if err != nil {
-		log.WithError(err).Error("failed to get balance from hay")
-		return
-	}
+	collatAmount := status.Lot
 
-	collatAmount := big.NewInt(0).Div(big.NewInt(0).Mul(balance, status.Price), WAD)
-	if collatAmount.Cmp(status.Lot) > 0 {
-		collatAmount = status.Lot
-	}
-
-	hayMax := big.NewInt(0).Div(big.NewInt(0).Mul(status.Price, collatAmount), RAY)
+	hayMax := big.NewInt(0).Div(big.NewInt(0).Mul(status.Price, status.Lot), RAY)
 	log = log.WithFields(logrus.Fields{
 		"collat_to_buy": collatAmount.String(),
 		"hay_max":       hayMax.String(),
 	})
 
-	log.Debug("buying auction...")
-	j.buyAuction(log, auctionID, collatAmount, status.Price)
-	log.Debug("auction bought")
+	log.Debug("flash buying auction...")
+	j.flashBuyAuction(log, auctionID, collatAmount, hayMax, status.Price)
+	log.Debug("flash auction bought")
 }
 
-func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collatAmount, maxPrice *big.Int) {
+func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.Int, collatAmount, borrowAmount, maxPrice *big.Int) {
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to get tx opts")
 		return
 	}
 
-	tx, err := j.inter.BuyFromAuction(
+	tx, err := j.flash.FlashBuyAuction(
 		opts,
-		j.collateralAddr,
+		j.hayAddr,
 		auctionID,
+		borrowAmount.Add(borrowAmount, big.NewInt(100)),
+		j.collateralAddr,
 		collatAmount,
 		maxPrice,
-		opts.From,
 	)
 	if err != nil {
 		log.WithError(err).Error("failed to send buy tx")
@@ -241,34 +218,4 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 	}
 
 	return
-}
-
-func (j *buyAuctionJob) approveTokens() error {
-	opts, err := j.wallet.Opts(j.ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to get tx opts")
-	}
-
-	tx, err := j.hay.Approve(
-		opts,
-		j.interactAddr,
-		abi.MaxUint256,
-	)
-	if err != nil {
-		return errors.Wrap(err, "failed to send tx")
-	}
-
-	if j.withWait {
-		receipt, err := bind.WaitMined(j.ctx, j.ethCli, tx)
-		if err != nil {
-			return errors.Wrapf(err, "failed to wait for tx %s mint", tx.Hash())
-		}
-
-		if receipt.Status == types.ReceiptStatusFailed {
-			_, err := getRevertReason(j.ctx, j.ethCli, tx, receipt)
-			return errors.Wrapf(err, "failed to wait for tx %s mint", tx.Hash())
-		}
-	}
-
-	return nil
 }

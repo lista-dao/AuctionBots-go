@@ -1,3 +1,4 @@
-.env.example
+*.example
 .idea
 docker-compose.yaml
+vendor

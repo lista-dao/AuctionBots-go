@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	analyticsv1 "github.com/helio-money/auctionbot/internal/analytics/v1"
-	daov2 "github.com/helio-money/auctionbot/internal/dao/v2"
+	daov2 "github.com/helio-money/auctionbot/internal/dao/v2/interaction"
 	"github.com/helio-money/auctionbot/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/robfig/cron"

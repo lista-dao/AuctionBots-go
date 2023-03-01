@@ -5,8 +5,8 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    restart: unless-stopped
+    restart: on-failure
     env_file:
-      .env.example
+      .env.example.helio
     ports:
       - "8000:6565"

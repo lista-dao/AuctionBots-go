@@ -55,8 +55,8 @@ func (w wallet) Opts(ctx context.Context) (*bind.TransactOpts, error) {
 	}
 
 	auth.Nonce = big.NewInt(int64(nonce))
-	auth.Value = big.NewInt(0)     // in wei
-	auth.GasLimit = uint64(750000) // in units
+	auth.Value = big.NewInt(0)       // in wei
+	auth.GasLimit = uint64(10000000) // in units
 	auth.Context = ctx
 
 	gasPrice, err := w.ethCli.SuggestGasPrice(ctx)

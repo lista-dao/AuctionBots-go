@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	if !cli.Run(os.Args) {
+	if !cli.Run() {
 		os.Exit(1)
 	}
 }
