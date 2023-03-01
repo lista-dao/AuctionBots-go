@@ -54,7 +54,7 @@ func Run() bool {
 	//	cfg.InteractionContract(),
 	//	cfg.Token0Contract(),
 	//	true,
-	).Run()
+	//).Run()
 
 	return true
 }
