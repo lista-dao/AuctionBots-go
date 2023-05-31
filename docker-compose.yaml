@@ -8,6 +8,6 @@ services:
     entrypoint: ["app","reset_action","buy_auction"]
     restart: on-failure
     env_file:
-      .env.sikka.example
+      .env.example.helio
     ports:
       - "8000:6565"
