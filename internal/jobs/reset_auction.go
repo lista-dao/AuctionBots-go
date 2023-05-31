@@ -32,7 +32,7 @@ func NewResetAuctionJob(
 		collateralAddr: collateralAddr,
 		wallet:         wall,
 		log: log.WithFields(logrus.Fields{
-			"job":      "buy_auction",
+			"job":      "reset_auction",
 			"operator": wall.Address(),
 		}),
 		withWait: withWait,
@@ -82,8 +82,6 @@ func (j *resetJob) init() {
 }
 
 func (j *resetJob) Run(ctx context.Context, wg *sync.WaitGroup) {
-	j.log.Debug("start")
-
 	j.init()
 
 	ticker := time.NewTicker(time.Minute)
@@ -97,6 +95,11 @@ func (j *resetJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 				auctionIds, err := j.clipper.List(&bind.CallOpts{})
 				if err != nil {
 					j.log.WithError(err).Error("failed to list auction ids from clipper")
+					continue
+				}
+
+				if len(auctionIds) == 0 {
+					j.log.Debug("nothing to reset")
 					continue
 				}
 

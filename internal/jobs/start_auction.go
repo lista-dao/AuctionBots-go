@@ -53,7 +53,6 @@ type startAuctionJob struct {
 }
 
 func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
-	j.log.Debug("start")
 	inter, err := daov2.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
@@ -71,6 +70,11 @@ func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 				if err != nil {
 					j.log.WithError(err).Error("failed to get red users")
 					return
+				}
+
+				if len(users) == 0 {
+					j.log.Debug("nothing to start")
+					continue
 				}
 
 				for ind := range users {

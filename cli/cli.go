@@ -14,7 +14,7 @@ import (
 
 const (
 	commandBuyFlashAuction = "buy_flash_auction"
-	commandBuyAction       = "buy_action"
+	commandBuyAction       = "buy_auction"
 	commandResetAction     = "reset_action"
 	commandStartAction     = "start_action"
 )

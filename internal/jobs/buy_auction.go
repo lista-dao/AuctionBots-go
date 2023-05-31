@@ -131,8 +131,6 @@ func (j *buyAuctionJob) init() {
 }
 
 func (j *buyAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
-	j.log.Debug("start")
-
 	j.init()
 	ticker := time.NewTicker(time.Minute)
 	go func() {
@@ -145,6 +143,11 @@ func (j *buyAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 				auctionIds, err := j.clipper.List(&bind.CallOpts{})
 				if err != nil {
 					j.log.WithError(err).Error("failed to list auction ids from clipper")
+					continue
+				}
+
+				if len(auctionIds) == 0 {
+					j.log.Debug("nothing to buy")
 					continue
 				}
 

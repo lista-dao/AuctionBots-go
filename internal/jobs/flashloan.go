@@ -37,7 +37,7 @@ func NewBuyFlashAuctionJob(
 		collateralAddr: collateralAddr,
 		wallet:         wall,
 		log: log.WithFields(logrus.Fields{
-			"job":      "buy_auction",
+			"job":      "flash_buy_auction",
 			"operator": wall.Address(),
 		}),
 		hayAddr:       hayAddr,
@@ -128,6 +128,11 @@ func (j *buyFlashAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 				auctionIds, err := j.clipper.List(&bind.CallOpts{})
 				if err != nil {
 					j.log.WithError(err).Error("failed to list auction ids from clipper")
+					continue
+				}
+
+				if len(auctionIds) == 0 {
+					j.log.Debug("nothing to buy")
 					continue
 				}
 
