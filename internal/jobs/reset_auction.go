@@ -10,9 +10,10 @@ import (
 	"github.com/helio-money/auctionbot/internal/dao/v2/interaction"
 	"github.com/helio-money/auctionbot/internal/wallet"
 	"github.com/pkg/errors"
-	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
 	"math/big"
+	"sync"
+	"time"
 )
 
 func NewResetAuctionJob(
@@ -23,7 +24,7 @@ func NewResetAuctionJob(
 	interactAddr common.Address,
 	collateralAddr common.Address,
 	withWait bool,
-) cron.Job {
+) Job {
 	job := &resetJob{
 		ctx:            ctx,
 		ethCli:         ethCli,
@@ -40,7 +41,7 @@ func NewResetAuctionJob(
 	return job
 }
 
-var _ cron.Job = (*resetJob)(nil)
+var _ Job = (*resetJob)(nil)
 
 type resetJob struct {
 	ctx context.Context
@@ -80,19 +81,33 @@ func (j *resetJob) init() {
 	}
 }
 
-func (j *resetJob) Run() {
+func (j *resetJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 	j.log.Debug("start")
 
 	j.init()
 
-	auctionIds, err := j.clipper.List(&bind.CallOpts{})
-	if err != nil {
-		j.log.WithError(err).Error("failed to list auction ids from clipper")
-	}
+	ticker := time.NewTicker(time.Minute)
+	go func() {
+		j.log.Debug("start")
 
-	for _, auctionID := range auctionIds {
-		j.processAuction(auctionID)
-	}
+		defer wg.Done()
+		for {
+			select {
+			case <-ticker.C:
+				auctionIds, err := j.clipper.List(&bind.CallOpts{})
+				if err != nil {
+					j.log.WithError(err).Error("failed to list auction ids from clipper")
+					continue
+				}
+
+				for _, auctionID := range auctionIds {
+					j.processAuction(auctionID)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 func (j *resetJob) processAuction(auctionID *big.Int) {

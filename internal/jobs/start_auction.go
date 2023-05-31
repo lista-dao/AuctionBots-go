@@ -10,8 +10,9 @@ import (
 	daov2 "github.com/helio-money/auctionbot/internal/dao/v2/interaction"
 	"github.com/helio-money/auctionbot/internal/wallet"
 	"github.com/pkg/errors"
-	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
+	"sync"
+	"time"
 )
 
 func NewStartAuctionJob(
@@ -23,7 +24,7 @@ func NewStartAuctionJob(
 	interactAddr common.Address,
 	collateralAddr common.Address,
 	withWait bool,
-) cron.Job {
+) Job {
 	return &startAuctionJob{
 		ctx:            ctx,
 		ethCli:         ethCli,
@@ -36,7 +37,7 @@ func NewStartAuctionJob(
 	}
 }
 
-var _ cron.Job = (*startAuctionJob)(nil)
+var _ Job = (*startAuctionJob)(nil)
 
 type startAuctionJob struct {
 	ctx context.Context
@@ -51,32 +52,45 @@ type startAuctionJob struct {
 	withWait bool
 }
 
-func (j *startAuctionJob) Run() {
+func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 	j.log.Debug("start")
-	users, err := j.analyticsCli.GetRedUsers(j.ctx)
-	if err != nil {
-		j.log.WithError(err).Error("failed to get red users")
-		return
-	}
-
 	inter, err := daov2.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
 	}
 
-	for ind := range users {
-		log := j.log.WithFields(logrus.Fields{
-			"user_address": users[ind].UserAddress.String(),
-		})
+	ticker := time.NewTicker(time.Minute)
+	go func() {
+		j.log.Debug("start")
 
-		//TODO: add liquidation neediness checking
-		//TODO: add profitability checking
+		defer wg.Done()
+		for {
+			select {
+			case <-ticker.C:
+				users, err := j.analyticsCli.GetRedUsers(j.ctx)
+				if err != nil {
+					j.log.WithError(err).Error("failed to get red users")
+					return
+				}
 
-		log.Debug("starting auction...")
-		if err := j.startAuction(inter, users[ind]); err != nil {
-			log.WithError(err).Error("failed to start auction")
+				for ind := range users {
+					log := j.log.WithFields(logrus.Fields{
+						"user_address": users[ind].UserAddress.String(),
+					})
+
+					//TODO: add liquidation neediness checking
+					//TODO: add profitability checking
+
+					log.Debug("starting auction...")
+					if err := j.startAuction(inter, users[ind]); err != nil {
+						log.WithError(err).Error("failed to start auction")
+					}
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
-	}
+	}()
 }
 
 func (j *startAuctionJob) startAuction(inter *daov2.Interaction, user analyticsv1.User) error {

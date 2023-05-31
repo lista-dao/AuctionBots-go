@@ -10,10 +10,11 @@ import (
 	"github.com/helio-money/auctionbot/internal/dao/v2/clipper"
 	"github.com/helio-money/auctionbot/internal/dao/v2/flash/flashbuy"
 	"github.com/helio-money/auctionbot/internal/dao/v2/flash/interfaces/ierc3156flashlender"
+	"sync"
+	"time"
 
 	"github.com/helio-money/auctionbot/internal/dao/v2/interaction"
 	"github.com/helio-money/auctionbot/internal/wallet"
-	"github.com/robfig/cron"
 	"github.com/sirupsen/logrus"
 	"math/big"
 )
@@ -26,9 +27,10 @@ func NewBuyFlashAuctionJob(
 	interactAddr common.Address,
 	collateralAddr common.Address,
 	hayAddr common.Address,
+	flashLoanAddr common.Address,
 	withWait bool,
-) cron.Job {
-	job := &buyFlashAuctionJob{
+) Job {
+	return &buyFlashAuctionJob{
 		ctx:            ctx,
 		ethCli:         ethCli,
 		interactAddr:   interactAddr,
@@ -38,14 +40,13 @@ func NewBuyFlashAuctionJob(
 			"job":      "buy_auction",
 			"operator": wall.Address(),
 		}),
-		hayAddr:  hayAddr,
-		withWait: withWait,
+		hayAddr:       hayAddr,
+		withWait:      withWait,
+		flashLoanAddr: flashLoanAddr,
 	}
-
-	return job
 }
 
-var _ cron.Job = (*buyFlashAuctionJob)(nil)
+var _ Job = (*buyFlashAuctionJob)(nil)
 
 type buyFlashAuctionJob struct {
 	ctx context.Context
@@ -57,7 +58,7 @@ type buyFlashAuctionJob struct {
 	hayAddr        common.Address
 	interactAddr   common.Address
 	spotAddr       common.Address
-	flashbutAddr   common.Address
+	flashLoanAddr  common.Address
 	collateralIlk  [32]byte
 
 	flash  *flashbuy.Flashbuy
@@ -75,7 +76,7 @@ func (j *buyFlashAuctionJob) init() {
 		panic("buy auction job is null")
 	}
 	var err error
-	j.flash, _ = flashbuy.NewFlashbuy(common.HexToAddress("0xcac83ED872E6996C6188ca310F57B78C760Db896"), j.ethCli)
+	j.flash, _ = flashbuy.NewFlashbuy(j.flashLoanAddr, j.ethCli)
 	j.inter, err = interaction.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
@@ -114,19 +115,30 @@ func (j *buyFlashAuctionJob) init() {
 	}
 }
 
-func (j *buyFlashAuctionJob) Run() {
-	j.log.Debug("start")
-
+func (j *buyFlashAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 	j.init()
+	ticker := time.NewTicker(time.Minute)
+	go func() {
+		j.log.Debug("start")
 
-	auctionIds, err := j.clipper.List(&bind.CallOpts{})
-	if err != nil {
-		j.log.WithError(err).Error("failed to list auction ids from clipper")
-	}
+		defer wg.Done()
+		for {
+			select {
+			case <-ticker.C:
+				auctionIds, err := j.clipper.List(&bind.CallOpts{})
+				if err != nil {
+					j.log.WithError(err).Error("failed to list auction ids from clipper")
+					continue
+				}
 
-	for _, auctionID := range auctionIds {
-		j.processAuction(auctionID)
-	}
+				for _, auctionID := range auctionIds {
+					j.processAuction(auctionID)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 func (j *buyFlashAuctionJob) processAuction(auctionID *big.Int) {

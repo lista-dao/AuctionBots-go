@@ -19,7 +19,7 @@ type contracter interface {
 	DogContract() common.Address
 	HayContract() common.Address
 	Token0Contract() common.Address
-	FlashloanContract() common.Address
+	FlashloanContract() *common.Address
 }
 
 type contracts struct {
@@ -45,7 +45,7 @@ type contractsParams struct {
 	dog         string `populate:"required"`
 	spot        string `populate:"required"`
 	token0      string `populate:"required"`
-	flashloan   string `populate:"required"`
+	flashloan   string
 	collaterals string `populate:"required" type:"array"`
 }
 
@@ -60,7 +60,7 @@ func (contr *contracts) populate() {
 	flag.StringVar(&contr.hay, "HAY", "", "hay contract")
 	flag.StringVar(&contr.spot, "SPOT", "", "spot contract")
 	flag.StringVar(&contr.token0, "TOKEN0", "", "token 0 contract")
-	flag.StringVar(&contr.token0, "TOKEN0", "", "token 0 contract")
+	flag.StringVar(&contr.token0, "FLASHLOAN", "", "flashloan contract")
 	flag.Parse()
 }
 
@@ -183,9 +183,9 @@ func (contr *contracts) Token0Contract() common.Address {
 	return *contr.Token0Addr
 }
 
-func (contr *contracts) FlashloanContract() common.Address {
+func (contr *contracts) FlashloanContract() *common.Address {
 	if !contr.populated {
 		contr.populateContracts()
 	}
-	return *contr.FlashloanAddr
+	return contr.FlashloanAddr
 }
