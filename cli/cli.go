@@ -70,8 +70,8 @@ func Run(args []string) bool {
 				true,
 			)
 		case commandBuyFlashAuction:
-			if cfg.FlashloanContract() == nil {
-				panic(fmt.Sprintf("FLASHLOAN contract must be set for %s", commandBuyFlashAuction))
+			if cfg.FlashBuyContract() == nil {
+				panic(fmt.Sprintf("FLASHBUY contract must be set for %s mode", commandBuyFlashAuction))
 			}
 
 			jj[ind] = jobs.NewBuyFlashAuctionJob(
@@ -82,7 +82,7 @@ func Run(args []string) bool {
 				cfg.InteractionContract(),
 				cfg.Token0Contract(),
 				cfg.HayContract(),
-				*cfg.FlashloanContract(),
+				*cfg.FlashBuyContract(),
 				true,
 			)
 		default:
