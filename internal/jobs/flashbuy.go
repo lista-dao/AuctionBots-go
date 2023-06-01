@@ -27,7 +27,7 @@ func NewBuyFlashAuctionJob(
 	interactAddr common.Address,
 	collateralAddr common.Address,
 	hayAddr common.Address,
-	flashLoanAddr common.Address,
+	flashBuyAddr common.Address,
 	withWait bool,
 ) Job {
 	return &buyFlashAuctionJob{
@@ -40,9 +40,9 @@ func NewBuyFlashAuctionJob(
 			"job":      "flash_buy_auction",
 			"operator": wall.Address(),
 		}),
-		hayAddr:       hayAddr,
-		withWait:      withWait,
-		flashLoanAddr: flashLoanAddr,
+		hayAddr:      hayAddr,
+		withWait:     withWait,
+		flashBuyAddr: flashBuyAddr,
 	}
 }
 
@@ -58,7 +58,7 @@ type buyFlashAuctionJob struct {
 	hayAddr        common.Address
 	interactAddr   common.Address
 	spotAddr       common.Address
-	flashLoanAddr  common.Address
+	flashBuyAddr   common.Address
 	collateralIlk  [32]byte
 
 	flash  *flashbuy.Flashbuy
@@ -76,7 +76,7 @@ func (j *buyFlashAuctionJob) init() {
 		panic("buy auction job is null")
 	}
 	var err error
-	j.flash, _ = flashbuy.NewFlashbuy(j.flashLoanAddr, j.ethCli)
+	j.flash, _ = flashbuy.NewFlashbuy(j.flashBuyAddr, j.ethCli)
 	j.inter, err = interaction.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
