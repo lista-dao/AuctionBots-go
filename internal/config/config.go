@@ -3,6 +3,7 @@ package config
 import (
 	analyticsv1 "github.com/helio-money/auctionbot/internal/analytics/v1"
 	"github.com/sirupsen/logrus"
+	"math/big"
 )
 
 type configer interface {
@@ -13,6 +14,7 @@ type configer interface {
 type Config interface {
 	Log() *logrus.Logger
 	AnalyticsCli() *analyticsv1.Client
+	MaxPricePercentage() *big.Int
 	contracter
 	ethereumer
 }
@@ -22,6 +24,7 @@ type config struct {
 	logger
 	ethereum
 	contracts
+	settings
 }
 
 func NewConfig() (Config, error) {

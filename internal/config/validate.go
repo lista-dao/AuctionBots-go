@@ -7,6 +7,7 @@ func (cfg *config) validate() error {
 		cfg.analyticsClient.validate,
 		cfg.ethereum.validate,
 		cfg.logger.validate,
+		cfg.settings.validate,
 	}
 
 	for _, validate := range validations {

@@ -28,6 +28,7 @@ func NewBuyFlashAuctionJob(
 	collateralAddr common.Address,
 	hayAddr common.Address,
 	flashBuyAddr common.Address,
+	maxPricePerc *big.Int,
 	withWait bool,
 ) Job {
 	return &buyFlashAuctionJob{
@@ -43,6 +44,7 @@ func NewBuyFlashAuctionJob(
 		hayAddr:      hayAddr,
 		withWait:     withWait,
 		flashBuyAddr: flashBuyAddr,
+		maxPricePerc: maxPricePerc,
 	}
 }
 
@@ -50,6 +52,10 @@ var _ Job = (*buyFlashAuctionJob)(nil)
 
 type buyFlashAuctionJob struct {
 	ctx context.Context
+
+	// job will buy action when
+	// auction_price < actual_price * percentage (1-100%)
+	maxPricePerc *big.Int
 
 	wallet         wallet.Walleter
 	ethCli         *ethclient.Client
@@ -178,8 +184,8 @@ func (j *buyFlashAuctionJob) processAuction(auctionID *big.Int) {
 	// check if auction lot is 0 or auction needs redo or
 	// auction collateral price is higher than actual
 	if status.NeedsRedo ||
-		status.Lot.Cmp(big.NewInt(0)) < 0 {
-		//auctionPrice.Cmp(calcPercent(actualPrice, big.NewInt(95))) >= 0
+		status.Lot.Cmp(big.NewInt(0)) < 0 ||
+		auctionPrice.Cmp(calcPercent(actualPrice, j.maxPricePerc)) >= 0 {
 		log.Debug("auctions is skipped")
 		return
 	}

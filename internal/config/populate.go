@@ -8,6 +8,7 @@ func (cfg *config) populate() {
 		cfg.ethereum.populate,
 		cfg.contracts.populate,
 		cfg.logger.populate,
+		cfg.settings.populate,
 	}
 
 	for _, populate := range populates {

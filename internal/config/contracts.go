@@ -19,7 +19,7 @@ type contracter interface {
 	DogContract() common.Address
 	HayContract() common.Address
 	Token0Contract() common.Address
-	FlashBuyContract() *common.Address
+	FlashBuyContract() common.Address
 }
 
 type contracts struct {
@@ -183,9 +183,9 @@ func (contr *contracts) Token0Contract() common.Address {
 	return *contr.Token0Addr
 }
 
-func (contr *contracts) FlashBuyContract() *common.Address {
+func (contr *contracts) FlashBuyContract() common.Address {
 	if !contr.populated {
 		contr.populateContracts()
 	}
-	return contr.FlashbuyAddr
+	return *contr.FlashbuyAddr
 }

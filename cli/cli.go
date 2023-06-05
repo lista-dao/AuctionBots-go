@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/helio-money/auctionbot/internal/config"
 	"github.com/helio-money/auctionbot/internal/jobs"
 	"github.com/pkg/errors"
@@ -56,6 +58,7 @@ func Run(args []string) bool {
 				cfg.InteractionContract(),
 				cfg.Token0Contract(),
 				cfg.HayContract(),
+				cfg.MaxPricePercentage(),
 				true,
 			)
 		case commandStartAction:
@@ -70,7 +73,8 @@ func Run(args []string) bool {
 				true,
 			)
 		case commandBuyFlashAuction:
-			if cfg.FlashBuyContract() == nil {
+			// is address zero checking
+			if bytes.Compare(cfg.FlashBuyContract().Bytes(), common.Address{}.Bytes()) == 0 {
 				panic(fmt.Sprintf("FLASHBUY contract must be set for %s mode", commandBuyFlashAuction))
 			}
 
@@ -82,7 +86,8 @@ func Run(args []string) bool {
 				cfg.InteractionContract(),
 				cfg.Token0Contract(),
 				cfg.HayContract(),
-				*cfg.FlashBuyContract(),
+				cfg.FlashBuyContract(),
+				cfg.MaxPricePercentage(),
 				true,
 			)
 		default:
