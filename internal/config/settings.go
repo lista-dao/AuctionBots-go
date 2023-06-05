@@ -31,7 +31,7 @@ func (conf *settings) populate() {
 }
 
 func (cli *settings) check() error {
-	if cli.settingsParams.maxPricePerc > 0 && cli.settingsParams.maxPricePerc < 100 {
+	if cli.settingsParams.maxPricePerc < 0 && cli.settingsParams.maxPricePerc > 100 {
 		return errors.New("MAX_PRICE_PERCENTAGE must be < 100 and > 0")
 	}
 	cli.maxPricePerc = big.NewInt(cli.settingsParams.maxPricePerc)
