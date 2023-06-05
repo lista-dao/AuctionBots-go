@@ -60,7 +60,7 @@ func (contr *contracts) populate() {
 	flag.StringVar(&contr.hay, "HAY", "", "hay contract")
 	flag.StringVar(&contr.spot, "SPOT", "", "spot contract")
 	flag.StringVar(&contr.token0, "TOKEN0", "", "token 0 contract")
-	flag.StringVar(&contr.token0, "FLASHBUY", "", "flash buy contract")
+	flag.StringVar(&contr.flashbuy, "FLASHBUY", "", "flash buy contract")
 	flag.Parse()
 }
 

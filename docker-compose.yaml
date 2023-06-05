@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    entrypoint: ["app","reset_action","buy_auction"]
+    entrypoint: ["app","reset_auction","buy_auction"]
     restart: on-failure
     env_file:
       .env.example.helio

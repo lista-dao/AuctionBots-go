@@ -15,8 +15,8 @@ import (
 const (
 	commandBuyFlashAuction = "buy_flash_auction"
 	commandBuyAction       = "buy_auction"
-	commandResetAction     = "reset_action"
-	commandStartAction     = "start_action"
+	commandResetAction     = "reset_auction"
+	commandStartAction     = "start_auction"
 )
 
 func Run(args []string) bool {
