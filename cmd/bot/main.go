@@ -26,7 +26,9 @@ func main() {
 		logrus.Errorf("config.LoadConfig err: %v", err)
 	}
 
-	logrus.Infof("cfg: %+v", cfg.Log.Level)
+	logrus.Infof("log.level: %+v", cfg.Log.Level)
+	logrus.Infof("rpcNode.Http: %+v", cfg.RpcNode.Http)
+	logrus.Infof("rpcNode.Ws: %+v", cfg.RpcNode.Ws)
 
 	if !Run(cfg) {
 		os.Exit(1)
