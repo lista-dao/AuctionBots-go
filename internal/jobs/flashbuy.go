@@ -38,8 +38,9 @@ func NewBuyFlashAuctionJob(
 		collateralAddr: collateralAddr,
 		wallet:         wall,
 		log: log.WithFields(logrus.Fields{
-			"job":      "flash_buy_auction",
-			"operator": wall.Address(),
+			"job":        "flash_buy_auction",
+			"collateral": collateralAddr.String(),
+			"operator":   wall.Address(),
 		}),
 		hayAddr:      hayAddr,
 		withWait:     withWait,

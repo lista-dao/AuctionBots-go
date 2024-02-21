@@ -32,8 +32,9 @@ func NewResetAuctionJob(
 		collateralAddr: collateralAddr,
 		wallet:         wall,
 		log: log.WithFields(logrus.Fields{
-			"job":      "reset_auction",
-			"operator": wall.Address(),
+			"job":        "reset_auction",
+			"collateral": collateralAddr.String(),
+			"operator":   wall.Address(),
 		}),
 		withWait: withWait,
 	}

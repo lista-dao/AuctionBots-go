@@ -5,10 +5,10 @@ commands:
 log:
   level: "debug"
 wallet:
-  privateKey: "5e2e3d954500bf79967ec01751407e2b8cbb8732b428b193b54c33c13061e7bf"
+  privateKey: ""
 rpcNode:
-  ws: "wss://bsc-mainnet.nodereal.io/ws/v1/47e0da366965475cbe606db5709a37ed"
-  http: "https://bsc-mainnet.nodereal.io/v1/47e0da366965475cbe606db5709a37ed"
+  ws: ""
+  http: ""
 contract:
   interaction: "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4"
   collaterals:

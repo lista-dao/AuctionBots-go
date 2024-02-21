@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/helio-money/auctionbot/internal/jobs"
 	"github.com/helio-money/auctionbot/pkg/config"
-	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 	"math/big"
 	"os"
@@ -25,6 +25,8 @@ func main() {
 	if err != nil {
 		logrus.Errorf("config.LoadConfig err: %v", err)
 	}
+
+	logrus.Infof("cfg: %+v", cfg.Log.Level)
 
 	if !Run(cfg) {
 		os.Exit(1)
