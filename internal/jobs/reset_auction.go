@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -53,8 +55,9 @@ type resetJob struct {
 	collateralAddr common.Address
 	interactAddr   common.Address
 
-	inter   *interaction.Interaction
-	clipper *clipper.Clipper
+	inter    *interaction.Interaction
+	interAbi *abi.ABI
+	clipper  *clipper.Clipper
 
 	withWait bool
 }
@@ -66,6 +69,11 @@ func (j *resetJob) init() {
 	var err error
 
 	j.inter, err = interaction.NewInteraction(j.interactAddr, j.ethCli)
+	if err != nil {
+		panic(err)
+	}
+
+	j.interAbi, err = interaction.InteractionMetaData.GetAbi()
 	if err != nil {
 		panic(err)
 	}
@@ -144,6 +152,23 @@ func (j *resetJob) redoAuction(auctionID *big.Int) error {
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get tx opts")
+	}
+
+	ctx := context.Background()
+	input, err := j.interAbi.Pack("resetAuction", j.collateralAddr, auctionID, opts.From)
+	if err != nil {
+		return errors.Wrap(err, "j.interAbi.Pack")
+	}
+	_, err = j.ethCli.EstimateGas(ctx, ethereum.CallMsg{
+		From:     j.wallet.Address(),
+		To:       &j.interactAddr,
+		Gas:      opts.GasLimit,
+		GasPrice: opts.GasPrice,
+		Value:    opts.Value,
+		Data:     input,
+	})
+	if err != nil {
+		return errors.Wrap(err, "j.ethCli.EstimateGas")
 	}
 
 	tx, err := j.inter.ResetAuction(
