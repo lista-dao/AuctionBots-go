@@ -28,6 +28,8 @@ func LoadEnvironmentResource(config *Config) (*Resource, error) {
 		return nil, fmt.Errorf("initLogger err: %w", err)
 	}
 
+	resource.Log.SetReportCaller(true)
+
 	analyticsUrl, err := url.Parse(config.Analytics.Url)
 	if err != nil {
 		return nil, fmt.Errorf("url.Parse err: %w", err)

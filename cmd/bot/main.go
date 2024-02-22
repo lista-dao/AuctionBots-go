@@ -21,6 +21,8 @@ var configFile = flag.String("config", "./config/config.yaml", "config file path
 func main() {
 	flag.Parse()
 
+	logrus.SetReportCaller(true)
+
 	cfg, err := config.LoadConfig(*configFile)
 	if err != nil {
 		logrus.Errorf("config.LoadConfig err: %v", err)
