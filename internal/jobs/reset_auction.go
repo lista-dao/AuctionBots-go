@@ -178,7 +178,7 @@ func (j *resetJob) redoAuction(auctionID *big.Int) error {
 		opts.From,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to send tx")
+		return errors.Wrap(err, "j.inter.ResetAuction")
 	}
 
 	if j.withWait {

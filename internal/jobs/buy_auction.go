@@ -311,7 +311,7 @@ func (j *buyAuctionJob) approveTokens() error {
 		abi.MaxUint256,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to send tx")
+		return errors.Wrap(err, " j.hay.Approv")
 	}
 
 	if j.withWait {

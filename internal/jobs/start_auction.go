@@ -146,7 +146,7 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		opts.From,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to send tx")
+		return errors.Wrap(err, "j.inter.StartAuction")
 	}
 
 	if j.withWait {
