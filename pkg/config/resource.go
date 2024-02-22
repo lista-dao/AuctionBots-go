@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	analyticsv1 "github.com/helio-money/auctionbot/internal/analytics/v1"
-	"github.com/helio-money/auctionbot/internal/wallet"
+	analyticsv1 "github.com/lista-dao/AuctionBots-go/internal/analytics/v1"
+	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/sirupsen/logrus"
 	"net/url"
 )

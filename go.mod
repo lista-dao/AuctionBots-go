@@ -1,4 +1,4 @@
-module github.com/helio-money/auctionbot
+module github.com/lista-dao/AuctionBots-go
 
 go 1.22
 
