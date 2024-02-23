@@ -2,12 +2,6 @@
 
 ## Usage
 
-### Build
-Build the project with the following command.
-```shell
-CGO_ENABLED=0 go build -o auctionbots cmd/bot/main.go
-```
-
 ### Configuration
 
 Before running, you need to fill in some parameters of the configuration file.
@@ -22,15 +16,19 @@ rpcNode:
   ws: "<bsc ws node>"
   http: "<bsc http node>"
 ```
+You can get rpcNode from [Alchemy](https://www.alchemy.com/) or [Infura](https://www.infura.io/).
+
 
 ### Run
-Run with the configuration file.
-```shell
-./auctionbots -config config/config.yaml
-```
+You can get the binary file from the release page or build it yourself.
 
-### Run with Docker
-The configuration file also needs to be filled in before running.
+Here is the link to the release page: [Releases](https://github.com/lista-dao/AuctionBots-go/releases/).
+
+Run with the configuration file.
+
+For example:
+
+If your configuration file is located in "./config/config.yaml", you can run the following command:
 ```shell
-docker-compose up -d
+./auctionbots -config ./config/config.yaml
 ```

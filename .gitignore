@@ -6,3 +6,4 @@ config/config.yaml
 .env.dev
 auctionbots
 bin/
+.DS_Store
