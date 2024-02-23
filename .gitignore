@@ -4,3 +4,6 @@ docker-compose.yaml
 vendor
 config/config.yaml
 .env.dev
+auctionbots
+bin/
+.DS_Store

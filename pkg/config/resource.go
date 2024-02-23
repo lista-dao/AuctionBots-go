@@ -1,13 +1,19 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/gorilla/websocket"
+	"net/http"
+	"net/url"
+	"sync"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	analyticsv1 "github.com/lista-dao/AuctionBots-go/internal/analytics/v1"
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/sirupsen/logrus"
-	"net/url"
 )
 
 type Resource struct {
@@ -87,7 +93,22 @@ func initHttpNodeClient(httpURL string) (*ethclient.Client, error) {
 }
 
 func initWsNodeClient(wsURL string) (*ethclient.Client, error) {
-	wsCli, err := ethclient.Dial(wsURL)
+	ctx := context.Background()
+
+	dialer := websocket.Dialer{
+		Proxy:           http.ProxyFromEnvironment,
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		WriteBufferPool: new(sync.Pool),
+	}
+
+	conn, err := rpc.DialWebsocketWithDialer(ctx, wsURL, "", dialer)
+	if err != nil {
+		return nil, fmt.Errorf("rpc.DialWebsocketWithDialer err: %w", err)
+	}
+
+	wsCli := ethclient.NewClient(conn)
+
 	if err != nil {
 		return nil, fmt.Errorf("ethclient.Dial err: %w", err)
 	}
