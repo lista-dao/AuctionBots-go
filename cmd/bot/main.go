@@ -5,18 +5,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/lista-dao/AuctionBots-go/internal/jobs"
-	"github.com/lista-dao/AuctionBots-go/pkg/config"
-	"github.com/sirupsen/logrus"
 	"math/big"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/lista-dao/AuctionBots-go/internal/jobs"
+	"github.com/lista-dao/AuctionBots-go/pkg/config"
+	"github.com/sirupsen/logrus"
 )
 
-var configFile = flag.String("config", "./config/config.yaml", "config file path")
+var configFile = flag.String("config", "./config/config1.yaml", "config file path")
 
 func main() {
 	flag.Parse()
@@ -29,8 +30,6 @@ func main() {
 	}
 
 	logrus.Infof("log.level: %+v", cfg.Log.Level)
-	logrus.Infof("rpcNode.Http: %+v", cfg.RpcNode.Http)
-	logrus.Infof("rpcNode.Ws: %+v", cfg.RpcNode.Ws)
 
 	if !Run(cfg) {
 		os.Exit(1)
@@ -69,11 +68,12 @@ func Run(cfg *config.Config) bool {
 	}
 
 	jj := make([]jobs.Job, len(args)*len(collaterals))
-	for ind, arg := range args {
+	i := 0
+	for _, arg := range args {
 		for _, collateral := range collaterals {
 			switch arg {
 			case commandResetAction:
-				jj[ind] = jobs.NewResetAuctionJob(
+				jj[i] = jobs.NewResetAuctionJob(
 					context.Background(),
 					resource.Log,
 					resource.Wallet,
@@ -83,7 +83,7 @@ func Run(cfg *config.Config) bool {
 					true,
 				)
 			case commandBuyAction:
-				jj[ind] = jobs.NewBuyAuctionJob(
+				jj[i] = jobs.NewBuyAuctionJob(
 					context.Background(),
 					resource.Log,
 					resource.Wallet,
@@ -95,7 +95,7 @@ func Run(cfg *config.Config) bool {
 					true,
 				)
 			case commandStartAction:
-				jj[ind] = jobs.NewStartAuctionJob(
+				jj[i] = jobs.NewStartAuctionJob(
 					context.Background(),
 					resource.Log,
 					resource.Wallet,
@@ -111,7 +111,7 @@ func Run(cfg *config.Config) bool {
 					panic(fmt.Sprintf("FLASHBUY contract must be set for %s mode", commandBuyFlashAuction))
 				}
 
-				jj[ind] = jobs.NewBuyFlashAuctionJob(
+				jj[i] = jobs.NewBuyFlashAuctionJob(
 					context.Background(),
 					resource.Log,
 					resource.Wallet,
@@ -126,18 +126,12 @@ func Run(cfg *config.Config) bool {
 			default:
 				panic(fmt.Sprintf("such command %s is not exists", arg))
 			}
+			i++
 		}
 
 	}
 
-	ctx, cancel := ctxWithSig()
-	defer cancel()
-	defer func() {
-		if err := recover(); err != nil {
-			resource.Log.Error(err)
-			cancel()
-		}
-	}()
+	ctx := context.Background()
 
 	wg := &sync.WaitGroup{}
 	for _, j := range jj {
