@@ -5,3 +5,4 @@ vendor
 config/config.yaml
 .env.dev
 auctionbots
+bin/
