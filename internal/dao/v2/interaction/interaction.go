@@ -5,7 +5,7 @@ package interaction
 
 import (
 	"errors"
-	"github.com/helio-money/auctionbot/internal/dao/v2/clipper"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/clipper"
 	"math/big"
 	"strings"
 

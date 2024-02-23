@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	httpcon "github.com/helio-money/auctionbot/pkg/httpconn"
+	httpcon "github.com/lista-dao/AuctionBots-go/pkg/httpconn"
 	"github.com/pkg/errors"
 	"net/http"
 	"net/url"

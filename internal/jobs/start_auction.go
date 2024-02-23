@@ -2,13 +2,15 @@ package jobs
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	analyticsv1 "github.com/helio-money/auctionbot/internal/analytics/v1"
-	daov2 "github.com/helio-money/auctionbot/internal/dao/v2/interaction"
-	"github.com/helio-money/auctionbot/internal/wallet"
+	analyticsv1 "github.com/lista-dao/AuctionBots-go/internal/analytics/v1"
+	daov2 "github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
+	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"sync"
@@ -32,8 +34,14 @@ func NewStartAuctionJob(
 		interactAddr:   interactAddr,
 		collateralAddr: collateralAddr,
 		wallet:         wall,
-		log:            log.WithField("job", "start_auction"),
-		withWait:       withWait,
+		log: log.WithFields(
+			logrus.Fields{
+				"job":        "start_auction",
+				"collateral": collateralAddr.String(),
+				"operator":   wall.Address(),
+			},
+		),
+		withWait: withWait,
 	}
 }
 
@@ -47,17 +55,23 @@ type startAuctionJob struct {
 	ethCli         *ethclient.Client
 	log            *logrus.Entry
 	interactAddr   common.Address
+	inter          *daov2.Interaction
+	interAbi       *abi.ABI
 	collateralAddr common.Address
 
 	withWait bool
 }
 
 func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
-	inter, err := daov2.NewInteraction(j.interactAddr, j.ethCli)
+	var err error
+	j.inter, err = daov2.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
 	}
-
+	j.interAbi, err = daov2.InteractionMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
 	ticker := time.NewTicker(time.Minute)
 	go func() {
 		j.log.Debug("start")
@@ -86,7 +100,7 @@ func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 					//TODO: add profitability checking
 
 					log.Debug("starting auction...")
-					if err := j.startAuction(inter, users[ind]); err != nil {
+					if err := j.startAuction(users[ind]); err != nil {
 						log.WithError(err).Error("failed to start auction")
 					}
 				}
@@ -97,13 +111,35 @@ func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 }
 
-func (j *startAuctionJob) startAuction(inter *daov2.Interaction, user analyticsv1.User) error {
+func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get tx opts")
 	}
 
-	tx, err := inter.StartAuction(
+	ctx := context.Background()
+	input, err := j.interAbi.Pack(
+		"startAuction",
+		j.collateralAddr,
+		user.UserAddress,
+		opts.From,
+	)
+	if err != nil {
+		return errors.Wrap(err, "j.interAbi.Pack")
+	}
+	_, err = j.ethCli.EstimateGas(ctx, ethereum.CallMsg{
+		From:     j.wallet.Address(),
+		To:       &j.interactAddr,
+		Gas:      opts.GasLimit,
+		GasPrice: opts.GasPrice,
+		Value:    opts.Value,
+		Data:     input,
+	})
+	if err != nil {
+		return errors.Wrap(err, "j.ethCli.EstimateGas")
+	}
+
+	tx, err := j.inter.StartAuction(
 		opts,
 		j.collateralAddr,
 		user.UserAddress,

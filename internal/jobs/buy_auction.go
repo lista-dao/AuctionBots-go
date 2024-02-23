@@ -2,16 +2,17 @@ package jobs
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	daov1 "github.com/helio-money/auctionbot/internal/dao/v1"
-	daov2 "github.com/helio-money/auctionbot/internal/dao/v2"
-	"github.com/helio-money/auctionbot/internal/dao/v2/clipper"
-	"github.com/helio-money/auctionbot/internal/dao/v2/interaction"
-	"github.com/helio-money/auctionbot/internal/wallet"
+	daov1 "github.com/lista-dao/AuctionBots-go/internal/dao/v1"
+	daov2 "github.com/lista-dao/AuctionBots-go/internal/dao/v2"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/clipper"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
+	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"math/big"
@@ -37,8 +38,9 @@ func NewBuyAuctionJob(
 		collateralAddr: collateralAddr,
 		wallet:         wall,
 		log: log.WithFields(logrus.Fields{
-			"job":      "buy_auction",
-			"operator": wall.Address(),
+			"job":        "buy_auction",
+			"collateral": collateralAddr.String(),
+			"operator":   wall.Address(),
 		}),
 		hayAddr:      hayAddr,
 		withWait:     withWait,
@@ -63,6 +65,7 @@ type buyAuctionJob struct {
 	collateralAddr common.Address
 	hayAddr        common.Address
 	interactAddr   common.Address
+	interAbi       *abi.ABI
 	spotAddr       common.Address
 	collateralIlk  [32]byte
 
@@ -85,6 +88,10 @@ func (j *buyAuctionJob) init() {
 		panic(err)
 	}
 
+	j.interAbi, err = interaction.InteractionMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
 	spotAddr, err := j.inter.Spotter(&bind.CallOpts{})
 	if err != nil {
 		panic(err)
@@ -231,6 +238,32 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to get tx opts")
+		return
+	}
+
+	ctx := context.Background()
+	input, err := j.interAbi.Pack(
+		"buyFromAuction",
+		j.collateralAddr,
+		auctionID,
+		collatAmount,
+		maxPrice,
+		opts.From,
+	)
+	if err != nil {
+		log.WithError(err).Error("j.interAbi.Pack")
+		return
+	}
+	_, err = j.ethCli.EstimateGas(ctx, ethereum.CallMsg{
+		From:     j.wallet.Address(),
+		To:       &j.interactAddr,
+		Gas:      opts.GasLimit,
+		GasPrice: opts.GasPrice,
+		Value:    opts.Value,
+		Data:     input,
+	})
+	if err != nil {
+		log.WithError(err).Error("j.ethCli.EstimateGas")
 		return
 	}
 

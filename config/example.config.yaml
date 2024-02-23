@@ -1,0 +1,25 @@
+commands:
+  - "reset_auction"
+  - "buy_auction"
+  - "start_auction"
+log:
+  level: "debug"
+wallet:
+  privateKey: ""
+rpcNode:
+  ws: ""
+  http: ""
+contract:
+  interaction: "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4"
+  collaterals:
+    - "0x563282106A5B0538f8673c787B3A16D3Cc1DbF1a"
+    - "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
+    - "0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B"
+    - "0xa2E3356610840701BDf5611a53974510Ae27E2e1"
+    - "0x6C813D1d114d0caBf3F82f9E910BC29fE7f96451"
+  hay: "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
+  flushBuy: ""
+settings:
+  maxPricePercentage: 60
+analytics:
+  url: "https://api.prod.helio.money/"

@@ -5,9 +5,10 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
-    entrypoint: ["app","reset_auction","buy_auction"]
-    restart: on-failure
     env_file:
-      .env.example.helio
+      .env.dev
+    volumes:
+      - "./config:/app/config"
     ports:
       - "8000:6565"
+    entrypoint: ["app", "-config", "/app/config/example.config.yaml"]

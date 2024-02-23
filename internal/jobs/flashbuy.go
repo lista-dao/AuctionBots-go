@@ -2,19 +2,21 @@ package jobs
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	daov1 "github.com/helio-money/auctionbot/internal/dao/v1"
-	"github.com/helio-money/auctionbot/internal/dao/v2/clipper"
-	"github.com/helio-money/auctionbot/internal/dao/v2/flash/flashbuy"
-	"github.com/helio-money/auctionbot/internal/dao/v2/flash/interfaces/ierc3156flashlender"
+	daov1 "github.com/lista-dao/AuctionBots-go/internal/dao/v1"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/clipper"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/flashbuy"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/interfaces/ierc3156flashlender"
 	"sync"
 	"time"
 
-	"github.com/helio-money/auctionbot/internal/dao/v2/interaction"
-	"github.com/helio-money/auctionbot/internal/wallet"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
+	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/sirupsen/logrus"
 	"math/big"
 )
@@ -38,8 +40,9 @@ func NewBuyFlashAuctionJob(
 		collateralAddr: collateralAddr,
 		wallet:         wall,
 		log: log.WithFields(logrus.Fields{
-			"job":      "flash_buy_auction",
-			"operator": wall.Address(),
+			"job":        "flash_buy_auction",
+			"collateral": collateralAddr.String(),
+			"operator":   wall.Address(),
 		}),
 		hayAddr:      hayAddr,
 		withWait:     withWait,
@@ -67,8 +70,9 @@ type buyFlashAuctionJob struct {
 	flashBuyAddr   common.Address
 	collateralIlk  [32]byte
 
-	flash  *flashbuy.Flashbuy
-	lender *ierc3156flashlender.Ierc3156flashlender
+	flash    *flashbuy.Flashbuy
+	flashAbi *abi.ABI
+	lender   *ierc3156flashlender.Ierc3156flashlender
 
 	inter   *interaction.Interaction
 	clipper *clipper.Clipper
@@ -83,6 +87,10 @@ func (j *buyFlashAuctionJob) init() {
 	}
 	var err error
 	j.flash, _ = flashbuy.NewFlashbuy(j.flashBuyAddr, j.ethCli)
+	j.flashAbi, err = flashbuy.FlashbuyMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
 	j.inter, err = interaction.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
 		panic(err)
@@ -207,6 +215,33 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		log.WithError(err).Error("failed to get tx opts")
+		return
+	}
+
+	ctx := context.Background()
+	input, err := j.flashAbi.Pack(
+		"flashBuyAuction",
+		j.hayAddr,
+		auctionID,
+		borrowAmount.Add(borrowAmount, big.NewInt(100)),
+		j.collateralAddr,
+		collatAmount,
+		maxPrice,
+	)
+	if err != nil {
+		log.WithError(err).Error("j.interAbi.Pack")
+		return
+	}
+	_, err = j.ethCli.EstimateGas(ctx, ethereum.CallMsg{
+		From:     j.wallet.Address(),
+		To:       &j.flashBuyAddr,
+		Gas:      opts.GasLimit,
+		GasPrice: opts.GasPrice,
+		Value:    opts.Value,
+		Data:     input,
+	})
+	if err != nil {
+		log.WithError(err).Error("j.ethCli.EstimateGas")
 		return
 	}
 
