@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"math/big"
-	"sync"
 	"time"
 )
 
@@ -143,13 +142,12 @@ func (j *buyAuctionJob) init() {
 	}
 }
 
-func (j *buyAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
+func (j *buyAuctionJob) Run(ctx context.Context) {
 	j.init()
 	ticker := time.NewTicker(time.Minute)
 	go func() {
 		j.log.Debug("start")
 
-		defer wg.Done()
 		for {
 			select {
 			case <-ticker.C:

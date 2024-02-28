@@ -4,20 +4,14 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"fmt"
-	"math/big"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lista-dao/AuctionBots-go/internal/jobs"
 	"github.com/lista-dao/AuctionBots-go/pkg/config"
 	"github.com/sirupsen/logrus"
+	"math/big"
 )
 
-var configFile = flag.String("config", "./config/config1.yaml", "config file path")
+var configFile = flag.String("config", "./config/config.yaml", "config file path")
 
 func main() {
 	flag.Parse()
@@ -31,9 +25,10 @@ func main() {
 
 	logrus.Infof("log.level: %+v", cfg.Log.Level)
 
-	if !Run(cfg) {
-		os.Exit(1)
-	}
+	Run(cfg)
+
+	block := make(chan struct{})
+	<-block
 }
 
 const (
@@ -43,15 +38,16 @@ const (
 	commandStartAction     = "start_auction"
 )
 
-func Run(cfg *config.Config) bool {
+func Run(cfg *config.Config) {
 	args := cfg.Commands
 	if len(args) == 0 {
-		panic(fmt.Sprintf("please set bot mode %v", []string{
+		logrus.Errorf("please set bot mode %v", []string{
 			commandBuyAction,
 			commandResetAction,
 			commandStartAction,
 			commandBuyFlashAuction,
-		}))
+		})
+		return
 	}
 
 	resource, err := config.LoadEnvironmentResource(cfg)
@@ -108,7 +104,8 @@ func Run(cfg *config.Config) bool {
 			case commandBuyFlashAuction:
 				// is address zero checking
 				if bytes.Compare(flushBuy.Bytes(), common.Address{}.Bytes()) == 0 {
-					panic(fmt.Sprintf("FLASHBUY contract must be set for %s mode", commandBuyFlashAuction))
+					logrus.Errorf("FLASHBUY contract must be set for %s mode", commandBuyFlashAuction)
+					return
 				}
 
 				jj[i] = jobs.NewBuyFlashAuctionJob(
@@ -124,7 +121,8 @@ func Run(cfg *config.Config) bool {
 					true,
 				)
 			default:
-				panic(fmt.Sprintf("such command %s is not exists", arg))
+				logrus.Errorf("such command %s is not exists", arg)
+				return
 			}
 			i++
 		}
@@ -133,27 +131,9 @@ func Run(cfg *config.Config) bool {
 
 	ctx := context.Background()
 
-	wg := &sync.WaitGroup{}
 	for _, j := range jj {
-		wg.Add(1)
-		j.Run(ctx, wg)
+		j.Run(ctx)
 	}
 
-	wg.Wait()
-	return true
-}
-
-func ctxWithSig() (context.Context, func()) {
-	ctx, cancel := context.WithCancel(context.Background())
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGINT)
-
-	go func() {
-		select {
-		case <-ch:
-			cancel()
-		}
-	}()
-
-	return ctx, cancel
+	logrus.Infof("start bot success!")
 }
