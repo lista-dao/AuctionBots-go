@@ -7,8 +7,5 @@ services:
       dockerfile: ./Dockerfile
     env_file:
       .env.dev
-    volumes:
-      - "./config:/app/config"
     ports:
       - "8000:6565"
-    entrypoint: ["app", "-config", "/app/config/example.config.yaml"]
