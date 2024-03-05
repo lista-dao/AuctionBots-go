@@ -14,7 +14,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"math/big"
-	"sync"
 	"time"
 )
 
@@ -90,14 +89,13 @@ func (j *resetJob) init() {
 	}
 }
 
-func (j *resetJob) Run(ctx context.Context, wg *sync.WaitGroup) {
+func (j *resetJob) Run(ctx context.Context) {
 	j.init()
 
 	ticker := time.NewTicker(time.Minute)
 	go func() {
 		j.log.Debug("start")
 
-		defer wg.Done()
 		for {
 			select {
 			case <-ticker.C:
@@ -178,7 +176,7 @@ func (j *resetJob) redoAuction(auctionID *big.Int) error {
 		opts.From,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to send tx")
+		return errors.Wrap(err, "j.inter.ResetAuction")
 	}
 
 	if j.withWait {

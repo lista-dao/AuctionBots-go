@@ -10,4 +10,4 @@ COPY --from=0 /usr/local/bin/app /usr/local/bin/app
 COPY ./config /app/config
 RUN apk add --no-cache ca-certificates
 
-ENTRYPOINT ["app"]
+ENTRYPOINT ["app", "-config", "/app/config/example.config.yaml"]

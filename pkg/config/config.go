@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/subosito/gotenv"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -34,6 +35,8 @@ type Config struct {
 }
 
 func LoadConfig(configFile string) (*Config, error) {
+	gotenv.Load(".env")
+
 	viper.SetConfigFile(configFile)
 	viper.SetConfigType("")
 	viper.AutomaticEnv()

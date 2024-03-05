@@ -13,7 +13,6 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"sync"
 	"time"
 )
 
@@ -62,7 +61,7 @@ type startAuctionJob struct {
 	withWait bool
 }
 
-func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
+func (j *startAuctionJob) Run(ctx context.Context) {
 	var err error
 	j.inter, err = daov2.NewInteraction(j.interactAddr, j.ethCli)
 	if err != nil {
@@ -76,7 +75,6 @@ func (j *startAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		j.log.Debug("start")
 
-		defer wg.Done()
 		for {
 			select {
 			case <-ticker.C:
@@ -146,7 +144,7 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		opts.From,
 	)
 	if err != nil {
-		return errors.Wrap(err, "failed to send tx")
+		return errors.Wrap(err, "j.inter.StartAuction")
 	}
 
 	if j.withWait {

@@ -12,7 +12,6 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/clipper"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/flashbuy"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/interfaces/ierc3156flashlender"
-	"sync"
 	"time"
 
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
@@ -129,13 +128,12 @@ func (j *buyFlashAuctionJob) init() {
 	}
 }
 
-func (j *buyFlashAuctionJob) Run(ctx context.Context, wg *sync.WaitGroup) {
+func (j *buyFlashAuctionJob) Run(ctx context.Context) {
 	j.init()
 	ticker := time.NewTicker(time.Minute)
 	go func() {
 		j.log.Debug("start")
 
-		defer wg.Done()
 		for {
 			select {
 			case <-ticker.C:
