@@ -8,3 +8,5 @@ auctionbots
 bin/
 .DS_Store
 .env
+*.zip
+auctionBot/

@@ -4,6 +4,7 @@ commands:
   - "start_auction"
 log:
   level: "debug"
+  caller: true
 wallet:
   privateKey: ""
 rpcNode:

@@ -9,6 +9,8 @@ import (
 	"github.com/lista-dao/AuctionBots-go/pkg/config"
 	"github.com/sirupsen/logrus"
 	"math/big"
+	"os"
+	"path/filepath"
 )
 
 var configFile = flag.String("config", "./config/config.yaml", "config file path")
@@ -16,14 +18,41 @@ var configFile = flag.String("config", "./config/config.yaml", "config file path
 func main() {
 	flag.Parse()
 
-	logrus.SetReportCaller(true)
-
-	cfg, err := config.LoadConfig(*configFile)
+	exe, err := os.Executable()
 	if err != nil {
-		logrus.Errorf("config.LoadConfig err: %v", err)
+		logrus.Errorf("os.Executable err: %v", err)
+		return
 	}
 
+	pwd, err := os.Getwd()
+	if err != nil {
+		logrus.Errorf("os.Getwd err: %v", err)
+		return
+	}
+
+	dir := filepath.Dir(exe)
+
+	logrus.Infof("current dir: %s", dir)
+	logrus.Infof("current work dir: %s", pwd)
+
+	cfg, err := config.LoadConfig(*configFile, dir)
+	if err != nil {
+		logrus.Errorf("config.LoadConfig err: %v", err)
+		cfg, err = config.LoadConfig(*configFile, pwd)
+	}
+
+	if err != nil {
+		logrus.Errorf("config.LoadConfig err: %v", err)
+		return
+	}
+	logrus.SetReportCaller(cfg.Log.Caller)
+
 	logrus.Infof("log.level: %+v", cfg.Log.Level)
+
+	if cfg.Wallet.PrivateKey == "" {
+		logrus.Errorf("privateKey must be set, please set it in config.txt")
+		return
+	}
 
 	Run(cfg)
 

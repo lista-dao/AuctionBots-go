@@ -19,7 +19,6 @@ import (
 type Resource struct {
 	Log             *logrus.Logger
 	HttpNodeClient  *ethclient.Client
-	WsNodeClient    *ethclient.Client
 	Wallet          wallet.Walleter
 	AnalyticsClient *analyticsv1.Client
 }
@@ -34,7 +33,7 @@ func LoadEnvironmentResource(config *Config) (*Resource, error) {
 		return nil, fmt.Errorf("initLogger err: %w", err)
 	}
 
-	resource.Log.SetReportCaller(true)
+	resource.Log.SetReportCaller(config.Log.Caller)
 
 	analyticsUrl, err := url.Parse(config.Analytics.Url)
 	if err != nil {
@@ -46,10 +45,6 @@ func LoadEnvironmentResource(config *Config) (*Resource, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initHttpNodeClient err: %w", err)
 
-	}
-	resource.WsNodeClient, err = initWsNodeClient(config.RpcNode.Ws)
-	if err != nil {
-		return nil, fmt.Errorf("initWsNodeClient err: %w", err)
 	}
 
 	resource.Wallet, err = initWallet(config.Wallet.PrivateKey, resource.HttpNodeClient)

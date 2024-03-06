@@ -2,7 +2,9 @@ package config
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"github.com/subosito/gotenv"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -11,13 +13,13 @@ import (
 type Config struct {
 	Commands []string `mapstructure:"commands"`
 	Log      struct {
-		Level string `mapstructure:"level"`
+		Level  string `mapstructure:"level"`
+		Caller bool   `mapstructure:"caller"`
 	} `mapstructure:"log"`
 	Wallet struct {
 		PrivateKey string `mapstructure:"privateKey"`
 	} `mapstructure:"wallet"`
 	RpcNode struct {
-		Ws   string `mapstructure:"ws"`
 		Http string `mapstructure:"http"`
 	} `mapstructure:"rpcNode"`
 	Contract struct {
@@ -34,10 +36,16 @@ type Config struct {
 	} `mapstructure:"analytics"`
 }
 
-func LoadConfig(configFile string) (*Config, error) {
-	gotenv.Load(".env")
+func LoadConfig(configFile string, dir string) (*Config, error) {
+	configFullPath := filepath.Join(dir, configFile)
+	envPath := filepath.Join(dir, ".env")
+	configTxtPath := filepath.Join(dir, "config.txt")
 
-	viper.SetConfigFile(configFile)
+	logrus.Infof("configFullPath: %s envPath: %s configTxtPath: %s", configFullPath, envPath, configTxtPath)
+	gotenv.Load(envPath)
+	gotenv.Load(configTxtPath)
+
+	viper.SetConfigFile(configFullPath)
 	viper.SetConfigType("")
 	viper.AutomaticEnv()
 	replacer := strings.NewReplacer(".", "_")
