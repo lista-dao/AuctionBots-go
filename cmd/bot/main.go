@@ -18,6 +18,7 @@ var configFile = flag.String("config", "./config/config.yaml", "config file path
 func main() {
 	flag.Parse()
 
+	logrus.SetFormatter(&logrus.JSONFormatter{})
 	exe, err := os.Executable()
 	if err != nil {
 		logrus.Errorf("os.Executable err: %v", err)

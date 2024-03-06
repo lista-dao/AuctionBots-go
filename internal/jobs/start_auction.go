@@ -110,6 +110,8 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 }
 
 func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
+	logrus.Infof("start auction for user: %s collateral: %s", user.UserAddress.String(), j.collateralAddr.String())
+
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get tx opts")
@@ -147,6 +149,7 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		return errors.Wrap(err, "j.inter.StartAuction")
 	}
 
+	logrus.Infof("start auction tx %s", tx.Hash().String())
 	if j.withWait {
 		receipt, err := bind.WaitMined(j.ctx, j.ethCli, tx)
 		if err != nil {

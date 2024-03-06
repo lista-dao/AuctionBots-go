@@ -61,7 +61,7 @@ func initLogger(level string) (*logrus.Logger, error) {
 		return nil, fmt.Errorf("logrus.ParseLevel err: %w", err)
 	}
 
-	log := logrus.New()
+	log := logrus.StandardLogger()
 	log.Level = l
 	return log, nil
 }

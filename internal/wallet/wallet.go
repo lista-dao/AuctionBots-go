@@ -49,7 +49,7 @@ type wallet struct {
 
 func (w wallet) Opts(ctx context.Context) (*bind.TransactOpts, error) {
 	auth := *w.auth
-	nonce, err := w.ethCli.PendingNonceAt(ctx, w.address)
+	nonce, err := w.ethCli.NonceAt(ctx, w.address, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get nonce")
 	}
