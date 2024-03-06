@@ -10,7 +10,7 @@ Here is the link to the release page: [Releases](https://github.com/lista-dao/Au
 
 After you download the release file and unzip it, you will find a configuration file named "config.txt".
 
-You need set you private key in the configuration file.
+You need set your private key in the configuration file.
 
 ```
 WALLET_PRIVATEKEY=YourPrivateKey
