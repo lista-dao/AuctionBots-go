@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -58,6 +59,7 @@ type startAuctionJob struct {
 	inter          *daov2.Interaction
 	interAbi       *abi.ABI
 	collateralAddr common.Address
+	cache          *ristretto.Cache
 
 	withWait bool
 }
@@ -69,6 +71,14 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 		panic(err)
 	}
 	j.interAbi, err = daov2.InteractionMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
+	j.cache, err = ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1e7,     // number of keys to track frequency of (10M).
+		MaxCost:     1 << 30, // maximum cost of cache (1GB).
+		BufferItems: 64,      // number of keys per Get buffer.
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -118,12 +128,19 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		return errors.Wrap(err, "failed to get tx opts")
 	}
 
-	tx, err := j.inter.Poke(opts, j.collateralAddr)
-	if err != nil {
-		return errors.Wrap(err, "j.inter.Poke")
-	}
+	_, ok := j.cache.Get("poke")
+	if !ok {
+		// didn't poke for one minute
+		tx, err := j.inter.Poke(opts, j.collateralAddr)
+		if err != nil {
+			return errors.Wrap(err, "j.inter.Poke")
+		}
 
-	logrus.Infof("poke tx %s", tx.Hash().String())
+		j.cache.SetWithTTL("poke", true, 1, time.Minute)
+
+		logrus.Infof("poke tx %s", tx.Hash().String())
+		opts.Nonce = opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	}
 
 	ctx := context.Background()
 	input, err := j.interAbi.Pack(
@@ -147,8 +164,7 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		return errors.Wrap(err, "j.ethCli.EstimateGas")
 	}
 
-	opts.Nonce = opts.Nonce.Add(opts.Nonce, big.NewInt(1))
-	tx, err = j.inter.StartAuction(
+	tx, err := j.inter.StartAuction(
 		opts,
 		j.collateralAddr,
 		user.UserAddress,
