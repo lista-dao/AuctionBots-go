@@ -13,6 +13,7 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"math/big"
 	"time"
 )
 
@@ -117,6 +118,13 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		return errors.Wrap(err, "failed to get tx opts")
 	}
 
+	tx, err := j.inter.Poke(opts, j.collateralAddr)
+	if err != nil {
+		return errors.Wrap(err, "j.inter.Poke")
+	}
+
+	logrus.Infof("poke tx %s", tx.Hash().String())
+
 	ctx := context.Background()
 	input, err := j.interAbi.Pack(
 		"startAuction",
@@ -139,7 +147,8 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 		return errors.Wrap(err, "j.ethCli.EstimateGas")
 	}
 
-	tx, err := j.inter.StartAuction(
+	opts.Nonce = opts.Nonce.Add(opts.Nonce, big.NewInt(1))
+	tx, err = j.inter.StartAuction(
 		opts,
 		j.collateralAddr,
 		user.UserAddress,
