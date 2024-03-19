@@ -92,7 +92,7 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 				users, err := j.analyticsCli.GetRedUsers(j.ctx)
 				if err != nil {
 					j.log.WithError(err).Error("failed to get red users")
-					return
+					continue
 				}
 
 				if len(users) == 0 {
