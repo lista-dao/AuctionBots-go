@@ -136,7 +136,7 @@ func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
 			return errors.Wrap(err, "j.inter.Poke")
 		}
 
-		j.cache.SetWithTTL("poke", true, 1, 3*time.Minute)
+		j.cache.SetWithTTL("poke", true, 1, time.Minute)
 
 		logrus.Infof("poke tx %s", tx.Hash().String())
 		opts.Nonce = opts.Nonce.Add(opts.Nonce, big.NewInt(1))
