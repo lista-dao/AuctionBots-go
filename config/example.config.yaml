@@ -29,3 +29,4 @@ settings:
   maxPricePercentage: 80
 analytics:
   url: "https://api.prod.helio.money/"
+  lista-api-url: "https://api.lista.org/"

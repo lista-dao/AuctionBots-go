@@ -125,7 +125,7 @@ func Run(cfg *config.Config) {
 					context.Background(),
 					resource.Log,
 					resource.Wallet,
-					resource.AnalyticsClient,
+					resource.AnalyticsClientV3,
 					resource.HttpNodeClient,
 					interaction,
 					collateral,

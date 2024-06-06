@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	analyticsv1 "github.com/lista-dao/AuctionBots-go/internal/analytics/v1"
+	analyticsv3 "github.com/lista-dao/AuctionBots-go/internal/analytics/v3"
 	daov2 "github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
@@ -22,7 +22,7 @@ func NewStartAuctionJob(
 	ctx context.Context,
 	log *logrus.Logger,
 	wall wallet.Walleter,
-	analyticsCli *analyticsv1.Client,
+	analyticsCli *analyticsv3.Client,
 	ethCli *ethclient.Client,
 	interactAddr common.Address,
 	collateralAddr common.Address,
@@ -52,7 +52,7 @@ type startAuctionJob struct {
 	ctx context.Context
 
 	wallet         wallet.Walleter
-	analyticsCli   *analyticsv1.Client
+	analyticsCli   *analyticsv3.Client
 	ethCli         *ethclient.Client
 	log            *logrus.Entry
 	interactAddr   common.Address
@@ -120,7 +120,7 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 	}()
 }
 
-func (j *startAuctionJob) startAuction(user analyticsv1.User) error {
+func (j *startAuctionJob) startAuction(user analyticsv3.User) error {
 	logrus.Infof("start auction for user: %s collateral: %s", user.UserAddress.String(), j.collateralAddr.String())
 
 	opts, err := j.wallet.Opts(j.ctx)
