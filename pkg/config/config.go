@@ -32,7 +32,8 @@ type Config struct {
 		MaxPricePercentage int64 `mapstructure:"maxPricePercentage"`
 	} `mapstructure:"settings"`
 	Analytics struct {
-		Url string `mapstructure:"url"`
+		Url         string `mapstructure:"url"`
+		ListaApiUrl string `mapstructure:"lista-api-url"`
 	} `mapstructure:"analytics"`
 }
 
