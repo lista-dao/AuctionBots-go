@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
+	analyticsv3 "github.com/lista-dao/AuctionBots-go/internal/analytics/v3"
 	"net/http"
 	"net/url"
 	"sync"
@@ -17,10 +18,11 @@ import (
 )
 
 type Resource struct {
-	Log             *logrus.Logger
-	HttpNodeClient  *ethclient.Client
-	Wallet          wallet.Walleter
-	AnalyticsClient *analyticsv1.Client
+	Log               *logrus.Logger
+	HttpNodeClient    *ethclient.Client
+	Wallet            wallet.Walleter
+	AnalyticsClient   *analyticsv1.Client
+	AnalyticsClientV3 *analyticsv3.Client
 }
 
 func LoadEnvironmentResource(config *Config) (*Resource, error) {
@@ -36,10 +38,12 @@ func LoadEnvironmentResource(config *Config) (*Resource, error) {
 	resource.Log.SetReportCaller(config.Log.Caller)
 
 	analyticsUrl, err := url.Parse(config.Analytics.Url)
+	analyticsUrlV3, err := url.Parse(config.Analytics.ListaApiUrl)
 	if err != nil {
 		return nil, fmt.Errorf("url.Parse err: %w", err)
 	}
 	resource.AnalyticsClient = analyticsv1.NewClient(analyticsUrl)
+	resource.AnalyticsClientV3 = analyticsv3.NewClient(analyticsUrlV3, resource.Log)
 
 	resource.HttpNodeClient, err = initHttpNodeClient(config.RpcNode.Http)
 	if err != nil {
