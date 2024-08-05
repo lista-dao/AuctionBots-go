@@ -27,7 +27,7 @@ contract:
   hay: "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
   flushBuy: ""
 settings:
-  maxPricePercentage: 90
+  maxPricePercentage: 80
 analytics:
   url: "https://api.prod.helio.money/"
   lista-api-url: "https://api.lista.org/"
