@@ -69,6 +69,11 @@ const (
 )
 
 func Run(cfg *config.Config) {
+	defer func() {
+		if r := recover(); r != nil {
+			logrus.Infof("Recovering from panic : %v \n", r)
+		}
+	}()
 	args := cfg.Commands
 	if len(args) == 0 {
 		logrus.Errorf("please set bot mode %v", []string{
