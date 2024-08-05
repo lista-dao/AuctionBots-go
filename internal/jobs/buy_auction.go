@@ -216,7 +216,10 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 		log.WithError(err).Error("failed to get balance from hay")
 		return
 	}
-
+	if status.Price == nil || len(status.Price.Bits()) == 0 {
+		log.WithError(err).Error("failed to get status.Price")
+		return
+	}
 	// balance * RAY / price
 	collatAmount := big.NewInt(0).Div(big.NewInt(0).Mul(balance, RAY), status.Price)
 	if collatAmount.Cmp(status.Lot) > 0 {
