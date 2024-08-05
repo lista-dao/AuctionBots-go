@@ -217,7 +217,8 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 		return
 	}
 
-	collatAmount := big.NewInt(0).Div(big.NewInt(0).Mul(balance, status.Price), WAD)
+	// balance * RAY / price
+	collatAmount := big.NewInt(0).Div(big.NewInt(0).Mul(balance, RAY), status.Price)
 	if collatAmount.Cmp(status.Lot) > 0 {
 		collatAmount = status.Lot
 	}
