@@ -41,9 +41,10 @@ func NewBuyAuctionJob(
 			"collateral": collateralAddr.String(),
 			"operator":   wall.Address(),
 		}),
-		hayAddr:      hayAddr,
-		withWait:     withWait,
-		maxPricePerc: maxPricePerc,
+		hayAddr:  hayAddr,
+		withWait: withWait,
+		//maxPricePerc: maxPricePerc,
+		maxPricePerc: big.NewInt(80),
 	}
 
 	return job
