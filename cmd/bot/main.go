@@ -4,16 +4,24 @@ import (
 	"bytes"
 	"context"
 	"flag"
+	"fmt"
+	gosundheit "github.com/AppsFlyer/go-sundheit"
+	"github.com/AppsFlyer/go-sundheit/checks"
+	healthhttp "github.com/AppsFlyer/go-sundheit/http"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lista-dao/AuctionBots-go/internal/jobs"
 	"github.com/lista-dao/AuctionBots-go/pkg/config"
 	"github.com/sirupsen/logrus"
+	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 var configFile = flag.String("config", "./config/config.yaml", "config file path")
+var LIQUIDATION_API_URL = "https://api.lista.org/api/v2/liquidations/red?start=0&count=1"
 
 func main() {
 	flag.Parse()
@@ -169,6 +177,39 @@ func Run(cfg *config.Config) {
 	for _, j := range jj {
 		j.Run(ctx)
 	}
-
 	logrus.Infof("start bot success!")
+	HealthCheck()
+}
+
+func HealthCheck() {
+	// create a new health instance
+	h := gosundheit.New()
+
+	// define an HTTP dependency check
+	httpCheckConf := checks.HTTPCheckConfig{
+		CheckName: "httpbin.liquidation.check",
+		Timeout:   3 * time.Second,
+		URL:       LIQUIDATION_API_URL,
+	}
+	httpCheck, err := checks.NewHTTPCheck(httpCheckConf)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = h.RegisterCheck(
+		httpCheck,
+		gosundheit.InitialDelay(time.Second),
+		gosundheit.ExecutionPeriod(10*time.Second),
+	)
+
+	if err != nil {
+		fmt.Println("Failed to register check: ", err)
+		return
+	}
+	// register a health endpoint
+	http.Handle("/admin/health", healthhttp.HandleHealthJSON(h))
+
+	// serve HTTP
+	log.Fatal(http.ListenAndServe(":8082", nil))
 }
