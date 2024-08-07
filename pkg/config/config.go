@@ -35,6 +35,16 @@ type Config struct {
 		Url         string `mapstructure:"url"`
 		ListaApiUrl string `mapstructure:"lista-api-url"`
 	} `mapstructure:"analytics"`
+	FlushBuy struct {
+		Slip  int64                     `mapstructure:"slip"`
+		Paths map[string]FlushBuyConfig `mapstructure:"paths"`
+	} `mapstructure:"flushBuy"`
+}
+
+type FlushBuyConfig struct {
+	Tokens   []string `mapstructure:"tokens"`
+	Fees     []uint64 `mapstructure:"fees"`
+	Received string   `mapstructure:"received"`
 }
 
 func LoadConfig(configFile string, dir string) (*Config, error) {
