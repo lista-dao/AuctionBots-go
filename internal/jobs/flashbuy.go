@@ -216,6 +216,11 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 		return
 	}
 
+	// todo path and real collateral token
+
+	collateralReal := common.HexToAddress("0x")
+	path := []byte{}
+
 	ctx := context.Background()
 	input, err := j.flashAbi.Pack(
 		"flashBuyAuction",
@@ -225,6 +230,8 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 		j.collateralAddr,
 		collatAmount,
 		maxPrice,
+		collateralReal,
+		path,
 	)
 	if err != nil {
 		log.WithError(err).Error("j.interAbi.Pack")
@@ -251,6 +258,8 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 		j.collateralAddr,
 		collatAmount,
 		maxPrice,
+		collateralReal,
+		path,
 	)
 	if err != nil {
 		log.WithError(err).Error("failed to send buy tx")
