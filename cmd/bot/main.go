@@ -211,5 +211,5 @@ func HealthCheck() {
 	http.Handle("/admin/health", healthhttp.HandleHealthJSON(h))
 
 	// serve HTTP
-	log.Fatal(http.ListenAndServe(":8082", nil))
+	log.Fatal(http.ListenAndServe(":6565", nil))
 }
