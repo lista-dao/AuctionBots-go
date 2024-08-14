@@ -22,7 +22,7 @@ type User struct {
 	UserAddress common.Address  `json:"userAddress"`
 	TokenName   string          `json:"tokenName"`
 	Collateral  decimal.Decimal `json:"collateral"`
-	//LiquidationCost      decimal.Decimal `json:"liquidationCost"`
+	//LiquidationCost decimal.Decimal `json:"liquidationCost"`
 	//RangeFromLiquidation decimal.Decimal `json:"rangeFromLiquidation"`
-	//LiquidationPrice     decimal.Decimal `json:"liquidationPrice"`
+	LiquidationPrice decimal.Decimal `json:"liquidationPrice"`
 }
