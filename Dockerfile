@@ -8,6 +8,6 @@ FROM alpine:3.9
 
 COPY --from=0 /usr/local/bin/app /usr/local/bin/app
 COPY ./config /app/config
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates curl
 
 ENTRYPOINT ["app", "-config", "/app/config/example.config.yaml"]
