@@ -14,7 +14,6 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"math/big"
 	"time"
 )
 
@@ -126,20 +125,6 @@ func (j *startAuctionJob) startAuction(user analyticsv3.User) error {
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to get tx opts")
-	}
-
-	_, ok := j.cache.Get("poke")
-	if !ok {
-		// didn't poke for one minute
-		tx, err := j.inter.Poke(opts, j.collateralAddr)
-		if err != nil {
-			return errors.Wrap(err, "j.inter.Poke")
-		}
-
-		j.cache.SetWithTTL("poke", true, 1, time.Minute)
-
-		logrus.Infof("poke tx %s", tx.Hash().String())
-		opts.Nonce = opts.Nonce.Add(opts.Nonce, big.NewInt(1))
 	}
 
 	ctx := context.Background()
