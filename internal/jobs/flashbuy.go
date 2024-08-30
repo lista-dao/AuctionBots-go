@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"encoding/hex"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,6 +13,9 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/clipper"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/flashbuy"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/interfaces/ierc3156flashlender"
+	"github.com/lista-dao/AuctionBots-go/pkg/config"
+	"github.com/lista-dao/AuctionBots-go/pkg/utils"
+	"strings"
 	"time"
 
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
@@ -31,6 +35,7 @@ func NewBuyFlashAuctionJob(
 	flashBuyAddr common.Address,
 	maxPricePerc *big.Int,
 	withWait bool,
+	cfg *config.Config,
 ) Job {
 	return &buyFlashAuctionJob{
 		ctx:            ctx,
@@ -46,7 +51,9 @@ func NewBuyFlashAuctionJob(
 		hayAddr:      hayAddr,
 		withWait:     withWait,
 		flashBuyAddr: flashBuyAddr,
-		maxPricePerc: maxPricePerc,
+		//maxPricePerc: maxPricePerc,
+		maxPricePerc: big.NewInt(88),
+		cfg:          cfg,
 	}
 }
 
@@ -78,6 +85,7 @@ type buyFlashAuctionJob struct {
 	oracle  *daov1.MockOracle
 
 	withWait bool
+	cfg      *config.Config
 }
 
 func (j *buyFlashAuctionJob) init() {
@@ -126,6 +134,7 @@ func (j *buyFlashAuctionJob) init() {
 	if err != nil {
 		panic(err)
 	}
+	j.log.Debugf("config addr:%v value:%v", j.cfg.Contract.FlushBuy, j.cfg.FlushBuy)
 }
 
 func (j *buyFlashAuctionJob) Run(ctx context.Context) {
@@ -203,8 +212,12 @@ func (j *buyFlashAuctionJob) processAuction(auctionID *big.Int) {
 		"collat_to_buy": collatAmount.String(),
 		"hay_max":       hayMax.String(),
 	})
-
 	log.Debug("flash buying auction...")
+	if hayMax.Cmp(AUCTION_CAP) >= 0 {
+		collatAmount = big.NewInt(0).Div(big.NewInt(0).Mul(AUCTION_CAP, RAY), status.Price)
+		collatAmount.Sub(collatAmount, big.NewInt(100))
+		log.Infof("FlashBuyAuction : split auction cap:%v price:%v amt:%v", AUCTION_CAP, auctionPrice, collatAmount)
+	}
 	j.flashBuyAuction(log, auctionID, collatAmount, hayMax, status.Price)
 	log.Debug("flash auction bought")
 }
@@ -216,6 +229,11 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 		return
 	}
 
+	slip := big.NewInt(j.cfg.FlushBuy.Slip)
+	fb := j.cfg.FlushBuy.Paths[strings.ToLower(j.collateralAddr.Hex())]
+	collateralReal := common.HexToAddress(fb.Received)
+	path := utils.PathToBytes(fb.Tokens, fb.Fees)
+
 	ctx := context.Background()
 	input, err := j.flashAbi.Pack(
 		"flashBuyAuction",
@@ -225,7 +243,12 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 		j.collateralAddr,
 		collatAmount,
 		maxPrice,
+		slip,
+		collateralReal,
+		path,
 	)
+	log.Debugf("FlashBuyAuction params: %v %v %v %v %v %v %v %v %v %v %v", j.hayAddr, auctionID, borrowAmount, j.collateralAddr, collatAmount, maxPrice, slip, collateralReal, hex.EncodeToString(path), fb.Tokens, fb.Fees)
+
 	if err != nil {
 		log.WithError(err).Error("j.interAbi.Pack")
 		return
@@ -251,6 +274,9 @@ func (j *buyFlashAuctionJob) flashBuyAuction(log *logrus.Entry, auctionID *big.I
 		j.collateralAddr,
 		collatAmount,
 		maxPrice,
+		slip,
+		collateralReal,
+		path,
 	)
 	if err != nil {
 		log.WithError(err).Error("failed to send buy tx")
