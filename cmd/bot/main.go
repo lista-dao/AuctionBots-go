@@ -162,6 +162,7 @@ func Run(cfg *config.Config) {
 					flushBuy,
 					big.NewInt(cfg.Settings.MaxPricePercentage),
 					true,
+					cfg,
 				)
 			default:
 				logrus.Errorf("such command %s is not exists", arg)
