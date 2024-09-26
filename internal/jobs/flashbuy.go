@@ -52,7 +52,7 @@ func NewBuyFlashAuctionJob(
 		withWait:     withWait,
 		flashBuyAddr: flashBuyAddr,
 		//maxPricePerc: maxPricePerc,
-		maxPricePerc: big.NewInt(90),
+		maxPricePerc: big.NewInt(95),
 		cfg:          cfg,
 	}
 }
