@@ -157,9 +157,9 @@ func (j *buyFlashAuctionJob) Run(ctx context.Context) {
 					continue
 				}
 
-				for _, auctionID := range auctionIds {
-					j.processAuction(auctionID)
-				}
+				//for _, auctionID := range auctionIds {
+				//	j.processAuction(auctionID)
+				//}
 			case <-ctx.Done():
 				return
 			}
