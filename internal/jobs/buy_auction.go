@@ -231,6 +231,12 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 		"collat_to_buy": collatAmount.String(),
 		"hay_max":       hayMax.String(),
 	})
+
+	if hayMax.Cmp(AUTIION_MAX_CAP) >= 0 {
+		log.Infof("buy_auction : ignoring users with excessive max auction amounts...")
+		return
+	}
+
 	if hayMax.Cmp(AUCTION_CAP) >= 0 {
 		log.Infof("buy_auction : ignoring users with excessive auction amounts...")
 		collatAmount = big.NewInt(0).Div(big.NewInt(0).Mul(AUCTION_CAP, RAY), status.Price)
