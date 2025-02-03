@@ -11,6 +11,7 @@ var WAD = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(18), nil)
 var BLN = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(9), nil)
 var RAY = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(27), nil)
 var AUCTION_CAP = big.NewInt(0).Mul(big.NewInt(10000), WAD)
+var AUTIION_MAX_CAP = big.NewInt(0).Mul(big.NewInt(500000), WAD)
 
 func getRevertReason(ctx context.Context, caller ethereum.ContractCaller, tx *types.Transaction, receipt *types.Receipt) (*string, error) {
 	from, err := types.Sender(types.NewEIP155Signer(tx.ChainId()), tx)
