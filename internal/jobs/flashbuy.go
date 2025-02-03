@@ -205,6 +205,12 @@ func (j *buyFlashAuctionJob) processAuction(auctionID *big.Int) {
 		return
 	}
 
+	collatHay := big.NewInt(0).Div(big.NewInt(0).Mul(status.Price, status.Lot), RAY)
+	if collatHay.Cmp(AUTIION_MAX_CAP) >= 0 {
+		log.Infof("buy_auction : ignoring users with excessive max auction amounts...")
+		return
+	}
+
 	collatAmount := status.Lot
 
 	hayMax := big.NewInt(0).Div(big.NewInt(0).Mul(status.Price, status.Lot), RAY)

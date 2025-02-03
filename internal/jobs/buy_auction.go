@@ -220,6 +220,13 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 		log.WithError(err).Error("failed to get status.Price")
 		return
 	}
+
+	collatHay := big.NewInt(0).Div(big.NewInt(0).Mul(status.Price, status.Lot), RAY)
+	if collatHay.Cmp(AUTIION_MAX_CAP) >= 0 {
+		log.Infof("buy_auction : ignoring users with excessive max auction amounts...")
+		return
+	}
+
 	// balance * RAY / price
 	collatAmount := big.NewInt(0).Div(big.NewInt(0).Mul(balance, RAY), status.Price)
 	if collatAmount.Cmp(status.Lot) > 0 {
@@ -231,11 +238,6 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 		"collat_to_buy": collatAmount.String(),
 		"hay_max":       hayMax.String(),
 	})
-
-	if hayMax.Cmp(AUTIION_MAX_CAP) >= 0 {
-		log.Infof("buy_auction : ignoring users with excessive max auction amounts...")
-		return
-	}
 
 	if hayMax.Cmp(AUCTION_CAP) >= 0 {
 		log.Infof("buy_auction : ignoring users with excessive auction amounts...")
