@@ -44,7 +44,7 @@ func NewBuyAuctionJob(
 		hayAddr:  hayAddr,
 		withWait: withWait,
 		//maxPricePerc: maxPricePerc,
-		maxPricePerc: big.NewInt(93),
+		maxPricePerc: big.NewInt(90),
 	}
 
 	return job
