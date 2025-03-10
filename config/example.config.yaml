@@ -42,7 +42,7 @@ analytics:
   url: "https://api.prod.helio.money/"
   lista-api-url: "https://api.lista.org/"
 flushBuy:
-  slip: 100
+  slip: 500
   paths:
     0x563282106A5B0538f8673c787B3A16D3Cc1DbF1a:
       tokens:
