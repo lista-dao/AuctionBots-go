@@ -34,6 +34,8 @@ contract:
     - "0x4510aa2b3efd13bBFD78C9BfdE764F224ecc7f50"
     - "0x581fa684d0ec11ccb46b1d92f1f24c8a3f95c0ca"
     - "0x7dc91cbd6cb5a3e6a95eed713aa6bf1d987146c8"
+    - "0x5a110fc00474038f6c02e89c707d638602ea44b5"
+    - "0x917af46b3c3c6e1bb7286b9f59637fb7c65851fb"
   hay: "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
   flushBuy: "0x9bA88e6b20041750Fd4e6271fEa455F5D44063Cb"
 settings:
