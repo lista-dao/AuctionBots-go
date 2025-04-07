@@ -223,6 +223,7 @@ func (j *buyFlashAuctionJob) processAuction(auctionID *big.Int) {
 		collatAmount = big.NewInt(0).Div(big.NewInt(0).Mul(AUCTION_CAP, RAY), status.Price)
 		collatAmount.Sub(collatAmount, big.NewInt(100))
 		log.Infof("FlashBuyAuction : split auction cap:%v price:%v amt:%v", AUCTION_CAP, auctionPrice, collatAmount)
+		hayMax = big.NewInt(0).Add(big.NewInt(0), AUCTION_CAP)
 	}
 	j.flashBuyAuction(log, auctionID, collatAmount, hayMax, status.Price)
 	log.Debug("flash auction bought")
