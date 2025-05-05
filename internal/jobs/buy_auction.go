@@ -152,6 +152,7 @@ func (j *buyAuctionJob) Run(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
+				Monitor.Beat("buyAuctionJob")
 				auctionIds, err := j.clipper.List(&bind.CallOpts{})
 				if err != nil {
 					j.log.WithError(err).Error("failed to list auction ids from clipper")

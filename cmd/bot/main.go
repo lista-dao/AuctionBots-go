@@ -208,9 +208,32 @@ func HealthCheck() {
 		fmt.Println("Failed to register check: ", err)
 		return
 	}
+
+	err = h.RegisterCheck(
+		&checks.CustomCheck{
+			CheckName: "jobs.heartbeat.check",
+			CheckFunc: jobHealthCheck,
+		},
+		gosundheit.InitialDelay(5*time.Second),
+		gosundheit.ExecutionPeriod(2*time.Minute),
+		gosundheit.ExecutionTimeout(15*time.Second),
+	)
+
+	if err != nil {
+		fmt.Println("Failed to register check: ", err)
+		return
+	}
 	// register a health endpoint
 	http.Handle("/admin/health", healthhttp.HandleHealthJSON(h))
 
 	// serve HTTP
 	log.Fatal(http.ListenAndServe(":6565", nil))
+}
+
+func jobHealthCheck(ctx context.Context) (details interface{}, err error) {
+	errId := jobs.Monitor.CheckStuckJobs()
+	if errId != "" {
+		return nil, fmt.Errorf("stuck jobs: %s", errId)
+	}
+	return nil, nil
 }
