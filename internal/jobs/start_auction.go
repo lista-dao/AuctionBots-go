@@ -88,6 +88,7 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
+				Monitor.Beat("startAuctionJob")
 				users, err := j.analyticsCli.GetRedUsers(j.ctx)
 				if err != nil {
 					j.log.WithError(err).Error("failed to get red users")
