@@ -63,6 +63,11 @@ func main() {
 		return
 	}
 
+	if cfg.FlushBuy.OneInchKey == "" {
+		logrus.Errorf("OneInchKey must be set, please set it in config.txt")
+		return
+	}
+
 	Run(cfg)
 
 	block := make(chan struct{})
@@ -100,7 +105,8 @@ func Run(cfg *config.Config) {
 
 	interaction := common.HexToAddress(cfg.Contract.Interaction)
 	hay := common.HexToAddress(cfg.Contract.Hay)
-	flushBuy := common.HexToAddress(cfg.Contract.FlushBuy)
+	//flushBuy := common.HexToAddress(cfg.Contract.FlushBuy)
+	liquidator := common.HexToAddress(cfg.Contract.Liquidator)
 	collaterals := make([]common.Address, 0, len(cfg.Contract.Collaterals))
 	for _, c := range cfg.Contract.Collaterals {
 		collaterals = append(collaterals, common.HexToAddress(c))
@@ -146,12 +152,12 @@ func Run(cfg *config.Config) {
 				)
 			case commandBuyFlashAuction:
 				// is address zero checking
-				if bytes.Compare(flushBuy.Bytes(), common.Address{}.Bytes()) == 0 {
+				if bytes.Compare(liquidator.Bytes(), common.Address{}.Bytes()) == 0 {
 					logrus.Errorf("FLASHBUY contract must be set for %s mode", commandBuyFlashAuction)
 					return
 				}
 
-				jj[i] = jobs.NewBuyFlashAuctionJob(
+				jj[i] = jobs.NewBuyFlashAuctionV2Job(
 					context.Background(),
 					resource.Log,
 					resource.Wallet,
@@ -159,7 +165,7 @@ func Run(cfg *config.Config) {
 					interaction,
 					collateral,
 					hay,
-					flushBuy,
+					liquidator,
 					big.NewInt(cfg.Settings.MaxPricePercentage),
 					true,
 					cfg,

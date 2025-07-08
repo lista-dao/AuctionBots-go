@@ -39,6 +39,8 @@ contract:
     - "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
   hay: "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
   flushBuy: "0x9bA88e6b20041750Fd4e6271fEa455F5D44063Cb"
+  liquidator: "0x556D96dFB7BDcf14B73E663CB46669f7826c7B87"
+  stakeManager: "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6"
 settings:
   maxPricePercentage: 88
 analytics:
@@ -46,120 +48,127 @@ analytics:
   lista-api-url: "https://api.lista.org/"
 flushBuy:
   slip: 500
+  oneInchSlip: 5
+  oneInchKey: ""
   paths:
-    0x563282106A5B0538f8673c787B3A16D3Cc1DbF1a:
-      tokens:
-        - "0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B"
-        - "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
-        - "0x55d398326f99059fF775485246999027B3197955"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 500
-        - 500
-      received: "0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B"
-#   busd
-    0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56:
-      tokens:
-        - "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
-        - "0x55d398326f99059fF775485246999027B3197955"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 100
-        - 500
-      received: "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
-#    slisBNB
-    0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B:
-      tokens:
-        - "0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B"
-        - "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 2500
-      received: "0xB0b84D294e0C75A6abe60171b70edEb2EFd14A1B"
-#    wBETH
-    0xa2E3356610840701BDf5611a53974510Ae27E2e1:
-      tokens:
-        - "0xa2E3356610840701BDf5611a53974510Ae27E2e1"
-        - "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"
-        - "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 500
-        - 2500
-      received: "0xa2E3356610840701BDf5611a53974510Ae27E2e1"
-    #    btcb
-    0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c:
-      tokens:
-        - "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"
-        - "0x55d398326f99059fF775485246999027B3197955"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 500
-      received: "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"
-    #    ezETH
-    0x2416092f143378750bb29b79ed961ab195cceea5:
-      tokens:
-        - "0x2416092f143378750bb29b79ed961ab195cceea5"
-        - "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"
-        - "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 500
-        - 2500
-      received: "0x2416092f143378750bb29b79ed961ab195cceea5"
-    #    weETH
-    0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A:
-      tokens:
-        - "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A"
-        - "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"
-        - "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 100
-        - 500
-        - 2500
-      received: "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A"
-    #    STONE
-    0x80137510979822322193fc997d400d5a6c747bf7:
-      tokens:
-        - "0x80137510979822322193fc997d400d5a6c747bf7"
-        - "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"
-        - "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 500
-        - 2500
-      received: "0x80137510979822322193fc997d400d5a6c747bf7"
-    #    SolvBTC
-    0x4aae823a6a0b376de6a78e74ecc5b079d38cbcf7:
-      tokens:
-        - "0x4aae823a6a0b376de6a78e74ecc5b079d38cbcf7"
-        - "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"
-        - "0x55d398326f99059fF775485246999027B3197955"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 500
-        - 500
-        - 500
-      received: "0x4aae823a6a0b376de6a78e74ecc5b079d38cbcf7"
-    #    BBTC
-    0xF5e11df1ebCf78b6b6D26E04FF19cD786a1e81dC:
-      tokens:
-      fees:
-      received: "0xF5e11df1ebCf78b6b6D26E04FF19cD786a1e81dC"
-    #   usd1
-    0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d:
-      tokens:
-        - "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
-        - "0x55d398326f99059fF775485246999027B3197955"
-        - "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5"
-      fees:
-        - 100
-        - 500
-      received: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+# bnb
+0x563282106a5b0538f8673c787b3a16d3cc1dbf1a:
+  tokens:
+    - "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b"
+    - "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    - "0x55d398326f99059ff775485246999027b3197955"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 500, 500]
+  received: "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b"
+
+# busd
+0xe9e7cea3dedca5984780bafc599bd69add087d56:
+  tokens:
+    - "0xe9e7cea3dedca5984780bafc599bd69add087d56"
+    - "0x55d398326f99059ff775485246999027b3197955"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [100, 500]
+  received: "0xe9e7cea3dedca5984780bafc599bd69add087d56"
+
+# slisBNB
+0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b:
+  tokens:
+    - "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b"
+    - "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 2500]
+  received: "0xb0b84d294e0c75a6abe60171b70edeb2efd14a1b"
+# wBETH
+0xa2e3356610840701bdf5611a53974510ae27e2e1:
+  tokens:
+    - "0xa2e3356610840701bdf5611a53974510ae27e2e1"
+    - "0x2170ed0880ac9a755fd29b2688956bd959f933f8"
+    - "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 500, 2500]
+  received: "0xa2e3356610840701bdf5611a53974510ae27e2e1"
+
+# btcb
+0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c:
+  tokens:
+    - "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c"
+    - "0x55d398326f99059ff775485246999027b3197955"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 500]
+  received: "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c"
+
+# ezETH
+0x2416092f143378750bb29b79ed961ab195cceea5:
+  tokens:
+    - "0x2416092f143378750bb29b79ed961ab195cceea5"
+    - "0x2170ed0880ac9a755fd29b2688956bd959f933f8"
+    - "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 500, 2500]
+  received: "0x2416092f143378750bb29b79ed961ab195cceea5"
+
+# weETH
+0x04c0599ae5a44757c0af6f9ec3b93da8976c150a:
+  tokens:
+    - "0x04c0599ae5a44757c0af6f9ec3b93da8976c150a"
+    - "0x2170ed0880ac9a755fd29b2688956bd959f933f8"
+    - "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [100, 500, 2500]
+  received: "0x04c0599ae5a44757c0af6f9ec3b93da8976c150a"
+
+# STONE
+0x80137510979822322193fc997d400d5a6c747bf7:
+  tokens:
+    - "0x80137510979822322193fc997d400d5a6c747bf7"
+    - "0x2170ed0880ac9a755fd29b2688956bd959f933f8"
+    - "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 500, 2500]
+  received: "0x80137510979822322193fc997d400d5a6c747bf7"
+
+# SolvBTC
+0x4aae823a6a0b376de6a78e74ecc5b079d38cbcf7:
+  tokens:
+    - "0x4aae823a6a0b376de6a78e74ecc5b079d38cbcf7"
+    - "0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c"
+    - "0x55d398326f99059ff775485246999027b3197955"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [500, 500, 500]
+  received: "0x4aae823a6a0b376de6a78e74ecc5b079d38cbcf7"
+
+# BBTC
+0xf5e11df1ebcf78b6b6d26e04ff19cd786a1e81dc:
+  tokens: []
+  fees: []
+  received: "0xf5e11df1ebcf78b6b6d26e04ff19cd786a1e81dc"
+
+# usd1
+0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d:
+  tokens:
+    - "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+    - "0x55d398326f99059ff775485246999027b3197955"
+    - "0x0782b6d8c4551b9760e74c0545a9bcd90bdc41e5"
+  fees: [100, 500]
+  received: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+
+# pumpBTC
+0xc6f28a668b7c18f921ccba4adc3d8db72bff0fe2:
+  tokens: []
+  fees: []
+  received: "0xf9c4ff105803a77ecb5dae300871ad76c2794fa4"
+  scale: "8"
+
+# eth
+0x6c813d1d114d0cabf3f82f9e910bc29fe7f96451:
+  tokens: []
+  fees: []
+  received: "0x2170ed0880ac9a755fd29b2688956bd959f933f8"
+  scale: "18"
+
+# mBTC
+0x4510aa2b3efd13bbfd78c9bfde764f224ecc7f50:
+  tokens: []
+  fees: []
+  received: "0x7c1cca5b25fa0bc9af9275fb53cba89dc172b878"
+  scale: "8"

@@ -23,10 +23,12 @@ type Config struct {
 		Http string `mapstructure:"http"`
 	} `mapstructure:"rpcNode"`
 	Contract struct {
-		Interaction string   `mapstructure:"interaction"`
-		Collaterals []string `mapstructure:"collaterals"`
-		Hay         string   `mapstructure:"hay"`
-		FlushBuy    string   `mapstructure:"flushBuy"`
+		Interaction  string   `mapstructure:"interaction"`
+		Collaterals  []string `mapstructure:"collaterals"`
+		Hay          string   `mapstructure:"hay"`
+		FlushBuy     string   `mapstructure:"flushBuy"`
+		Liquidator   string   `mapstructure:"liquidator"`
+		StakeManager string   `mapstructure:"stakeManager"`
 	} `mapstructure:"contract"`
 	Settings struct {
 		MaxPricePercentage int64 `mapstructure:"maxPricePercentage"`
@@ -36,8 +38,10 @@ type Config struct {
 		ListaApiUrl string `mapstructure:"lista-api-url"`
 	} `mapstructure:"analytics"`
 	FlushBuy struct {
-		Slip  int64                     `mapstructure:"slip"`
-		Paths map[string]FlushBuyConfig `mapstructure:"paths"`
+		Slip        int64                     `mapstructure:"slip"`
+		OneInchSlip int64                     `mapstructure:"oneInchSlip"`
+		OneInchKey  string                    `mapstructure:"oneInchKey"`
+		Paths       map[string]FlushBuyConfig `mapstructure:"paths"`
 	} `mapstructure:"flushBuy"`
 }
 
@@ -45,6 +49,7 @@ type FlushBuyConfig struct {
 	Tokens   []string `mapstructure:"tokens"`
 	Fees     []uint64 `mapstructure:"fees"`
 	Received string   `mapstructure:"received"`
+	Scale    string   `mapstructure:"scale"`
 }
 
 func LoadConfig(configFile string, dir string) (*Config, error) {
