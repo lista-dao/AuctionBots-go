@@ -322,6 +322,14 @@ func (j *buyFlashAuctionV2Job) flashLiquidate(log *logrus.Entry, auctionID *big.
 	}
 	ctx := context.Background()
 
+	log.WithFields(logrus.Fields{
+		"swap.src":      collateralReal.Hex(),
+		"swap.dst":      j.hayAddr.Hex(),
+		"swap.amount":   scaledInchAmt.String(),
+		"swap.from":     j.cfg.Contract.Liquidator,
+		"swap.slippage": j.cfg.FlushBuy.OneInchSlip,
+	}).Info("Prepared 1inch swap params")
+
 	swapData, err := client.GetSwap(ctx, aggregation.GetSwapParams{
 		Src:              collateralReal.Hex(),
 		Dst:              j.hayAddr.Hex(),
