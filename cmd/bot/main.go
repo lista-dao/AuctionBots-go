@@ -104,6 +104,7 @@ func Run(cfg *config.Config) {
 	}
 
 	interaction := common.HexToAddress(cfg.Contract.Interaction)
+	multiOracle := common.HexToAddress(cfg.Contract.MultiOracle)
 	hay := common.HexToAddress(cfg.Contract.Hay)
 	//flushBuy := common.HexToAddress(cfg.Contract.FlushBuy)
 	liquidator := common.HexToAddress(cfg.Contract.Liquidator)
@@ -138,6 +139,9 @@ func Run(cfg *config.Config) {
 					hay,
 					big.NewInt(cfg.Settings.MaxPricePercentage),
 					true,
+					resource.AnalyticsClientV3,
+					multiOracle,
+					cfg,
 				)
 			case commandStartAction:
 				jj[i] = jobs.NewStartAuctionJob(

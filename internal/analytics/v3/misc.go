@@ -25,4 +25,5 @@ type User struct {
 	//LiquidationCost decimal.Decimal `json:"liquidationCost"`
 	//RangeFromLiquidation decimal.Decimal `json:"rangeFromLiquidation"`
 	LiquidationPrice decimal.Decimal `json:"liquidationPrice"`
+	ClipperAddress   common.Address  `json:"clipperAddress"`
 }
