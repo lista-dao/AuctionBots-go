@@ -23,12 +23,15 @@ type Config struct {
 		Http string `mapstructure:"http"`
 	} `mapstructure:"rpcNode"`
 	Contract struct {
-		Interaction  string   `mapstructure:"interaction"`
-		Collaterals  []string `mapstructure:"collaterals"`
-		Hay          string   `mapstructure:"hay"`
-		FlushBuy     string   `mapstructure:"flushBuy"`
-		Liquidator   string   `mapstructure:"liquidator"`
-		StakeManager string   `mapstructure:"stakeManager"`
+		Interaction  string            `mapstructure:"interaction"`
+		Collaterals  []string          `mapstructure:"collaterals"`
+		LPProviders  map[string]string `mapstructure:"lpProviders"`
+		MultiOracle  string            `mapstructure:"multiOracle"`
+		PcsProvider  string            `mapstructure:"pcsProvider"`
+		Hay          string            `mapstructure:"hay"`
+		FlushBuy     string            `mapstructure:"flushBuy"`
+		Liquidator   string            `mapstructure:"liquidator"`
+		StakeManager string            `mapstructure:"stakeManager"`
 	} `mapstructure:"contract"`
 	Settings struct {
 		MaxPricePercentage int64 `mapstructure:"maxPricePercentage"`

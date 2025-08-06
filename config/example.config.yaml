@@ -41,6 +41,9 @@ contract:
   flushBuy: "0x9bA88e6b20041750Fd4e6271fEa455F5D44063Cb"
   liquidator: "0x556D96dFB7BDcf14B73E663CB46669f7826c7B87"
   stakeManager: "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6"
+  multiOracle: "0x79e9675cDe605Ef9965AbCE185C5FD08d0DE16B1"
+  lpProviders:
+    "0x842BD3E82463FF1243C6470162b4817cd7069ffD":"0xdA681Ee0FfD47638d587A87E465Ea359d3b37F9f" # clipper -> provider
 settings:
   maxPricePercentage: 88
 analytics:
