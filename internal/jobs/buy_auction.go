@@ -21,6 +21,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"log"
 	"math/big"
+	"strings"
 	"time"
 )
 
@@ -289,6 +290,67 @@ func parseType(typeStr string) abi.Type {
 	return t
 }
 
+var multicall3Address = common.HexToAddress("0x1Ee38d535d541c55C9dae27B12edf090C608E6Fb")
+
+const multicall3ABIJson = `[
+  {"inputs":[{"components":[{"internalType":"address","name":"target","type":"address"},{"internalType":"bool","name":"allowFailure","type":"bool"},{"internalType":"bytes","name":"callData","type":"bytes"}],"internalType":"struct Multicall3.Call3[]","name":"calls","type":"tuple[]"}],"name":"aggregate3","outputs":[{"components":[{"internalType":"bool","name":"success","type":"bool"},{"internalType":"bytes","name":"returnData","type":"bytes"}],"internalType":"struct Multicall3.Result[]","name":"returnData","type":"tuple[]"}],"stateMutability":"payable","type":"function"}
+]`
+
+type mcCall struct {
+	Target       common.Address
+	AllowFailure bool
+	CallData     []byte
+}
+
+type mcResult struct {
+	Success    bool
+	ReturnData []byte
+}
+
+func doMulticall3(ctx context.Context, client bind.ContractBackend, calls []mcCall) ([]mcResult, error) {
+	mcABI, err := abi.JSON(strings.NewReader(multicall3ABIJson))
+	if err != nil {
+		return nil, err
+	}
+	// pack calls
+	type call3 struct {
+		Target       common.Address
+		AllowFailure bool
+		CallData     []byte
+	}
+	in := make([]call3, 0, len(calls))
+	for _, c := range calls {
+		in = append(in, call3{Target: c.Target, AllowFailure: c.AllowFailure, CallData: c.CallData})
+	}
+	input, err := mcABI.Pack("aggregate3", in)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := ethereum.CallMsg{
+		To:   &multicall3Address,
+		Data: input,
+	}
+	raw, err := client.(bind.ContractCaller).CallContract(ctx, msg, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// decode results
+	var outs []struct {
+		Success    bool
+		ReturnData []byte
+	}
+	if err := mcABI.UnpackIntoInterface(&outs, "aggregate3", raw); err != nil {
+		return nil, err
+	}
+	res := make([]mcResult, len(outs))
+	for i, o := range outs {
+		res[i] = mcResult{Success: o.Success, ReturnData: o.ReturnData}
+	}
+	return res, nil
+}
+
 func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collatAmount, maxPrice *big.Int) {
 	opts, err := j.wallet.Opts(j.ctx)
 	if err != nil {
@@ -318,25 +380,99 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 			{Type: parseType("uint256")},
 			{Type: parseType("uint256")},
 		}
-		lps, err := j.pcsProvider.GetUserLps(nil, user.UserAddress)
+		callGetUserLps, _ := j.pcsProviderAbi.Pack("getUserLps", user.UserAddress)
+		callToken0, _ := j.pcsProviderAbi.Pack("token0")
+		callToken1, _ := j.pcsProviderAbi.Pack("token1")
+		callUserLiq, _ := j.pcsProviderAbi.Pack("userLiquidations", user.UserAddress)
+		firstCalls := []mcCall{
+			{Target: common.HexToAddress(realLpProviderAddr), AllowFailure: false, CallData: callGetUserLps},
+			{Target: common.HexToAddress(realLpProviderAddr), AllowFailure: false, CallData: callToken0},
+			{Target: common.HexToAddress(realLpProviderAddr), AllowFailure: false, CallData: callToken1},
+			{Target: common.HexToAddress(realLpProviderAddr), AllowFailure: true, CallData: callUserLiq},
+		}
+		firstRes, err := doMulticall3(ctx, j.ethCli, firstCalls)
 		if err != nil {
-			j.log.WithError(err).Error("failed to GetUserLps")
+			j.log.WithError(err).Error("multicall phase1 failed")
 			return
 		}
 
-		var minLp *big.Int
-		var minLpVal *big.Int // 1e18 scale (wei)
-		for _, lp := range lps {
-			lpVal, lperr := j.pcsProvider.GetLpValue(&bind.CallOpts{}, lp)
-			if lperr != nil {
-				continue
-			}
-			if minLpVal == nil || lpVal.Cmp(minLpVal) < 0 {
-				minLpVal = lpVal
-				minLp = lp
+		var lps []*big.Int
+		if err := j.pcsProviderAbi.UnpackIntoInterface(&lps, "getUserLps", firstRes[0].ReturnData); err != nil {
+			j.log.WithError(err).Error("decode getUserLps failed")
+			return
+		}
+
+		// decode token addresses
+		var token0Addr, token1Addr common.Address
+		if err := j.pcsProviderAbi.UnpackIntoInterface(&token0Addr, "token0", firstRes[1].ReturnData); err != nil {
+			j.log.WithError(err).Error("decode token0 failed")
+			return
+		}
+		if err := j.pcsProviderAbi.UnpackIntoInterface(&token1Addr, "token1", firstRes[2].ReturnData); err != nil {
+			j.log.WithError(err).Error("decode token1 failed")
+			return
+		}
+
+		// decode userLiquidations
+		var userLiq struct {
+			Ongoing    bool
+			Token0Left *big.Int
+			Token1Left *big.Int
+		}
+		if len(firstRes[3].ReturnData) > 0 {
+			if err := j.pcsProviderAbi.UnpackIntoInterface(&userLiq, "userLiquidations", firstRes[3].ReturnData); err != nil {
+				j.log.WithError(err).Error("decode userLiquidations failed")
+				return
 			}
 		}
 
+		if userLiq.Ongoing {
+			j.log.Warn("user in liquidation, skip auction")
+			return
+		}
+
+		secondCalls := make([]mcCall, 0, len(lps)*2)
+		for _, lp := range lps {
+			cd, _ := j.pcsProviderAbi.Pack("getLpValue", lp)
+			cdAmounts, _ := j.pcsProviderAbi.Pack("getAmounts", lp)
+			secondCalls = append(secondCalls, mcCall{Target: common.HexToAddress(realLpProviderAddr), AllowFailure: true, CallData: cd})
+			secondCalls = append(secondCalls, mcCall{Target: common.HexToAddress(realLpProviderAddr), AllowFailure: true, CallData: cdAmounts})
+		}
+		secondRes, err := doMulticall3(ctx, j.ethCli, secondCalls)
+		if err != nil {
+			j.log.WithError(err).Error("multicall phase2 failed")
+			return
+		}
+		var minLp *big.Int
+		var minLpVal *big.Int
+		var minLpAmounts struct {
+			Amount0 *big.Int
+			Amount1 *big.Int
+		}
+		for i := 0; i < len(lps); i++ {
+			valIdx := i * 2
+			amtIdx := i*2 + 1
+			if !secondRes[valIdx].Success || len(secondRes[valIdx].ReturnData) == 0 {
+				continue
+			}
+			var v *big.Int
+			if err := j.pcsProviderAbi.UnpackIntoInterface(&v, "getLpValue", secondRes[valIdx].ReturnData); err != nil {
+				continue
+			}
+			if minLpVal == nil || v.Cmp(minLpVal) < 0 {
+				minLpVal = v
+				minLp = lps[i]
+				var amt struct {
+					Amount0 *big.Int
+					Amount1 *big.Int
+				}
+				if len(secondRes[amtIdx].ReturnData) > 0 {
+					if err := j.pcsProviderAbi.UnpackIntoInterface(&amt, "getAmounts", secondRes[amtIdx].ReturnData); err == nil {
+						minLpAmounts = amt
+					}
+				}
+			}
+		}
 		if minLp == nil {
 			j.log.Error("no LP found for user")
 			return
@@ -345,31 +481,31 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 		collateralValue := new(big.Int).Mul(collatAmount, maxPrice) // 1e18 * 1e27 = 1e45
 		scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil)
 		collateralValue.Div(collateralValue, scale)
-		if minLpVal.Cmp(collateralValue) > 0 {
+		if collateralValue.Cmp(minLpVal) > 0 {
 			// User has more LP than needed — check token liquidation values
-			tokens, err := j.pcsProvider.UserLiquidations(&bind.CallOpts{}, user.UserAddress)
-			if err != nil {
-				j.log.WithError(err).Error("failed to GetUserLiquidations")
-				return
-			}
+			//tokens, err := j.pcsProvider.UserLiquidations(&bind.CallOpts{}, user.UserAddress)
+			//if err != nil {
+			//	j.log.WithError(err).Error("failed to GetUserLiquidations")
+			//	return
+			//}
 
-			t0Addr, _ := j.pcsProvider.Token0(&bind.CallOpts{})
-			t1Addr, _ := j.pcsProvider.Token1(&bind.CallOpts{})
+			//t0Addr, _ := j.pcsProvider.Token0(&bind.CallOpts{})
+			//t1Addr, _ := j.pcsProvider.Token1(&bind.CallOpts{})
 
 			// prices in 1e8
-			t0Price, err := j.multiOracle.Peek(&bind.CallOpts{}, t0Addr)
+			t0Price, err := j.multiOracle.Peek(&bind.CallOpts{}, token0Addr)
 			if err != nil {
 				j.log.WithError(err).Error("failed to get t0 price")
 				return
 			}
-			t1Price, err := j.multiOracle.Peek(&bind.CallOpts{}, t1Addr)
+			t1Price, err := j.multiOracle.Peek(&bind.CallOpts{}, token1Addr)
 			if err != nil {
 				j.log.WithError(err).Error("failed to get t1 price")
 				return
 			}
 
-			t0Amt := tokens.Token0Left
-			t1Amt := tokens.Token1Left
+			t0Amt := userLiq.Token0Left
+			t1Amt := userLiq.Token1Left
 
 			// convert to value in 1e8 scale
 			scale18 := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
@@ -378,6 +514,7 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 			t1Val := new(big.Int).Div(new(big.Int).Mul(t1Amt, t1Price), scale18)
 			totalVal := new(big.Int).Add(t0Val, t1Val)
 
+			collateralValue1e8 := new(big.Int).Div(collateralValue, scale10)
 			j.log.WithFields(logrus.Fields{
 				"t0_amount":        t0Amt.String(),
 				"t1_amount":        t1Amt.String(),
@@ -388,7 +525,7 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 				"total_value_1e8":  totalVal.String(),
 				"collat_value_1e8": collateralValue.String(),
 			}).Debug("liquidation value check")
-			collateralValue1e8 := new(big.Int).Div(collateralValue, scale10)
+
 			if totalVal.Cmp(collateralValue1e8) < 0 {
 				encodedData, err := args.Pack(t0Amt, t1Amt, minLp)
 				if err != nil {
@@ -399,12 +536,7 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 			}
 		} else {
 			// LP is smaller than needed collateral — use LP directly
-			tokens, err := j.pcsProvider.GetAmounts(&bind.CallOpts{}, minLp)
-			if err != nil {
-				j.log.WithError(err).Error("failed to GetAmounts")
-				return
-			}
-			encodedData, err := args.Pack(tokens.Amount0, tokens.Amount1, minLp)
+			encodedData, err := args.Pack(minLpAmounts.Amount0, minLpAmounts.Amount1, minLp)
 			if err != nil {
 				j.log.WithError(err).Error("failed to pack LP data")
 				return
