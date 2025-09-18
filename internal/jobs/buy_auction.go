@@ -2,21 +2,29 @@ package jobs
 
 import (
 	"context"
+	"encoding/hex"
+	"log"
+	"math/big"
+	"strings"
+	"time"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	analyticsv3 "github.com/lista-dao/AuctionBots-go/internal/analytics/v3"
 	daov1 "github.com/lista-dao/AuctionBots-go/internal/dao/v1"
 	daov2 "github.com/lista-dao/AuctionBots-go/internal/dao/v2"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/clipper"
-	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v3/interaction"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v3/oracle"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v3/provider"
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
+	"github.com/lista-dao/AuctionBots-go/pkg/config"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"math/big"
-	"time"
 )
 
 func NewBuyAuctionJob(
@@ -29,6 +37,9 @@ func NewBuyAuctionJob(
 	hayAddr common.Address,
 	maxPricePerc *big.Int,
 	withWait bool,
+	analyticsCli *analyticsv3.Client,
+	multiOracleAddr common.Address,
+	cfg *config.Config,
 ) Job {
 	job := &buyAuctionJob{
 		ctx:            ctx,
@@ -44,7 +55,10 @@ func NewBuyAuctionJob(
 		hayAddr:  hayAddr,
 		withWait: withWait,
 		//maxPricePerc: maxPricePerc,
-		maxPricePerc: big.NewInt(90),
+		maxPricePerc:    big.NewInt(90),
+		analyticsCli:    analyticsCli,
+		multiOracleAddr: multiOracleAddr,
+		cfg:             cfg,
 	}
 
 	return job
@@ -69,12 +83,20 @@ type buyAuctionJob struct {
 	spotAddr       common.Address
 	collateralIlk  [32]byte
 
-	inter   *interaction.Interaction
-	clipper *clipper.Clipper
-	oracle  *daov1.MockOracle
-	hay     *daov2.Token
+	inter       *interaction.Interaction
+	pcsProvider *provider.Provider
+	multiOracle *oracle.Oracle
+	clipper     *clipper.Clipper
+	oracle      *daov1.MockOracle
+	hay         *daov2.Token
 
-	withWait bool
+	withWait        bool
+	lp              bool
+	analyticsCli    *analyticsv3.Client
+	pcsProviderAbi  *abi.ABI
+	multiOracleAddr common.Address
+	multiOracleAbi  *abi.ABI
+	cfg             *config.Config
 }
 
 func (j *buyAuctionJob) init() {
@@ -87,8 +109,20 @@ func (j *buyAuctionJob) init() {
 	if err != nil {
 		panic(err)
 	}
+	j.multiOracle, err = oracle.NewOracle(j.multiOracleAddr, j.ethCli)
+	if err != nil {
+		panic(err)
+	}
 
 	j.interAbi, err = interaction.InteractionMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
+	j.pcsProviderAbi, err = provider.ProviderMetaData.GetAbi()
+	if err != nil {
+		panic(err)
+	}
+	j.multiOracleAbi, err = oracle.OracleMetaData.GetAbi()
 	if err != nil {
 		panic(err)
 	}
@@ -204,11 +238,23 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 	log = log.WithField("actual_price", actualPrice.String())
 
 	// check if auction lot is 0 or auction needs redo or
-	// auction collateral price is higher than actual
 	if status.NeedsRedo ||
-		status.Lot.Cmp(big.NewInt(0)) < 0 ||
-		auctionPrice.Cmp(calcPercent(actualPrice, j.maxPricePerc)) >= 0 {
+		status.Lot.Cmp(big.NewInt(0)) < 0 {
 		log.Debug("auctions is skipped")
+		return
+	}
+	user, err := j.analyticsCli.GetUserByAuctionId(context.Background(), auctionID.String(), j.collateralAddr.Hex())
+	if err != nil {
+		j.log.WithError(err).Error("failed to GetUserByAuctionId")
+		return
+	}
+	if user.ClipperAddress == (common.Address{}) {
+		log.Debug("auction skipped, empty ClipperAddress")
+		return
+	}
+
+	if auctionPrice.Cmp(calcPercent(actualPrice, j.maxPricePerc)) >= 0 {
+		log.Debug("auction skipped, collateral price is higher than actual")
 		return
 	}
 
@@ -250,6 +296,13 @@ func (j *buyAuctionJob) processAuction(auctionID *big.Int) {
 	j.buyAuction(log, auctionID, collatAmount, status.Price)
 	log.Debug("auction bought")
 }
+func parseType(typeStr string) abi.Type {
+	t, err := abi.NewType(typeStr, "", nil)
+	if err != nil {
+		log.Fatalf("Failed to parse type '%s': %v", typeStr, err)
+	}
+	return t
+}
 
 func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collatAmount, maxPrice *big.Int) {
 	opts, err := j.wallet.Opts(j.ctx)
@@ -259,6 +312,150 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 	}
 
 	ctx := context.Background()
+	user, err := j.analyticsCli.GetUserByAuctionId(ctx, auctionID.String(), j.collateralAddr.Hex())
+	if err != nil {
+		j.log.WithError(err).Error("failed to GetUserByAuctionId")
+		return
+	}
+	realLpProviderAddr := ""
+	clipperAddr := strings.ToLower(user.ClipperAddress.Hex())
+	if v, ok := j.cfg.Contract.LPProviders[clipperAddr]; ok {
+		realLpProviderAddr = v
+	}
+	data := []byte{}
+	if realLpProviderAddr != "" {
+		j.pcsProvider, err = provider.NewProvider(common.HexToAddress(realLpProviderAddr), j.ethCli)
+		if err != nil {
+			j.log.WithError(err).Error("failed to NewProvider", realLpProviderAddr)
+			return
+		}
+		args := abi.Arguments{
+			{Type: parseType("uint256")},
+			{Type: parseType("uint256")},
+			{Type: parseType("uint256")},
+			{Type: parseType("uint256")},
+		}
+		lps, err := j.pcsProvider.GetUserLps(nil, user.UserAddress)
+		if err != nil {
+			j.log.WithError(err).Error("failed to GetUserLps")
+			return
+		}
+
+		var minLp *big.Int
+		var minLpVal *big.Int // 1e18 scale (wei)
+		for _, lp := range lps {
+			lpVal, lperr := j.pcsProvider.GetLpValue(&bind.CallOpts{}, lp)
+			if lperr != nil {
+				continue
+			}
+			if minLpVal == nil || lpVal.Cmp(minLpVal) < 0 {
+				minLpVal = lpVal
+				minLp = lp
+			}
+		}
+		if minLp == nil {
+			j.log.Error("no LP found for user")
+			return
+		}
+		j.log.Infof("buyAuction: minLp=%v value%v", minLp.String(), minLpVal.String())
+
+		// --- compare LP with collateral value ---
+		collateralValue := new(big.Int).Mul(collatAmount, maxPrice) // 1e18 * 1e27 = 1e45
+		scale := new(big.Int).Exp(big.NewInt(10), big.NewInt(27), nil)
+		collateralValue.Div(collateralValue, scale)
+		currentTimestamp := time.Now().Unix()
+		deadline := currentTimestamp + int64((20 * time.Minute).Seconds())
+
+		tokens, err := j.pcsProvider.UserLiquidations(&bind.CallOpts{}, user.UserAddress)
+		if err != nil {
+			j.log.WithError(err).Error("failed to GetUserLiquidations")
+			return
+		}
+
+		t0Addr, _ := j.pcsProvider.Token0(&bind.CallOpts{})
+		t1Addr, _ := j.pcsProvider.Token1(&bind.CallOpts{})
+
+		// prices in 1e8
+		t0Price, err := j.multiOracle.Peek(&bind.CallOpts{}, t0Addr)
+		if err != nil {
+			j.log.WithError(err).Error("failed to get t0 price")
+			return
+		}
+		t1Price, err := j.multiOracle.Peek(&bind.CallOpts{}, t1Addr)
+		if err != nil {
+			j.log.WithError(err).Error("failed to get t1 price")
+			return
+		}
+
+		t0Amt := tokens.Token0Left
+		t1Amt := tokens.Token1Left
+
+		// convert to value in 1e8 scale
+		//scale18 := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+		scale8 := new(big.Int).Exp(big.NewInt(10), big.NewInt(8), nil)
+		t0Val := new(big.Int).Div(new(big.Int).Mul(t0Amt, t0Price), scale8)
+		t1Val := new(big.Int).Div(new(big.Int).Mul(t1Amt, t1Price), scale8)
+		totalVal := new(big.Int).Add(t0Val, t1Val)
+
+		j.log.WithFields(logrus.Fields{
+			"t0_amount":        t0Amt.String(),
+			"t1_amount":        t1Amt.String(),
+			"t0_price_1e8":     t0Price.String(),
+			"t1_price_1e8":     t1Price.String(),
+			"t0_value_1e8":     t0Val.String(),
+			"t1_value_1e8":     t1Val.String(),
+			"total_value_1e8":  totalVal.String(),
+			"collat_value_1e8": collateralValue.String(),
+		}).Debug("liquidation value check")
+		//collateralValue1e8 := new(big.Int).Div(collateralValue, scale10)
+		//minLpVal1e8 := new(big.Int).Div(minLpVal, scale10)
+
+		if totalVal.Cmp(collateralValue) < 0 {
+			//sum := new(big.Int).Add(totalVal, minLpVal1e8)
+			//if sum.Cmp(collateralValue1e8) < 0 {
+			nftAmounts, err := j.pcsProvider.GetAmounts(&bind.CallOpts{}, minLp)
+			if err != nil {
+				j.log.WithError(err).Error("failed to GetAmounts")
+				return
+			}
+			slippage := j.cfg.FlushBuy.OneInchSlip // 5 means 5% slippage
+			amt0 := getAmountBySlippage(nftAmounts.Amount0, slippage)
+			amt1 := getAmountBySlippage(nftAmounts.Amount1, slippage)
+			encodedData, err := args.Pack(amt0, amt1, minLp, big.NewInt(deadline))
+			if err != nil {
+				j.log.WithError(err).Error("failed to pack LP liquidation data")
+				return
+			}
+			data = encodedData
+			nftT0Val := new(big.Int).Div(new(big.Int).Mul(nftAmounts.Amount0, t0Price), scale8)
+			nftT1Val := new(big.Int).Div(new(big.Int).Mul(nftAmounts.Amount1, t1Price), scale8)
+			nftTotalVal := new(big.Int).Add(nftT0Val, nftT1Val)
+			sum2 := new(big.Int).Add(totalVal, nftTotalVal)
+			j.log.WithFields(logrus.Fields{
+				"nftT0Val":           nftT0Val.String(),
+				"nftT1Val":           nftT0Val.String(),
+				"nftTotalVal":        nftTotalVal.String(),
+				"nftAmounts.Amount0": nftAmounts.Amount0.String(),
+				"nftAmounts.Amount1": nftAmounts.Amount1.String(),
+				"amt0":               amt0.String(),
+				"amt1":               amt1.String(),
+				"nft+left":           sum2.String(),
+			}).Debug("totalVal check")
+			if sum2.Cmp(collateralValue) < 0 {
+				collatAmount = sum2
+				j.log.Infof("new collatAmount: %v", collatAmount.String())
+			}
+		}
+	}
+	j.log.WithFields(logrus.Fields{
+		"collateralAddr": j.collateralAddr.Hex(),
+		"auctionID":      auctionID.String(),
+		"collatAmount":   collatAmount.String(),
+		"maxPrice":       maxPrice.String(),
+		"from":           opts.From.Hex(),
+		"data":           hex.EncodeToString(data),
+	}).Info("Packing buyFromAuction params")
+
 	input, err := j.interAbi.Pack(
 		"buyFromAuction",
 		j.collateralAddr,
@@ -266,6 +463,7 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 		collatAmount,
 		maxPrice,
 		opts.From,
+		data,
 	)
 	if err != nil {
 		log.WithError(err).Error("j.interAbi.Pack")
@@ -291,6 +489,7 @@ func (j *buyAuctionJob) buyAuction(log *logrus.Entry, auctionID *big.Int, collat
 		collatAmount,
 		maxPrice,
 		opts.From,
+		data,
 	)
 	if err != nil {
 		log.WithError(err).Error("failed to send buy tx")
@@ -344,4 +543,17 @@ func (j *buyAuctionJob) approveTokens() error {
 	}
 
 	return nil
+}
+
+func getAmountBySlippage(amount *big.Int, slippage int64) *big.Int {
+	if slippage < 0 || slippage > 100 {
+		panic("invalid slippage percentage")
+	}
+	// (100 - slippage)
+	percent := big.NewInt(100 - slippage)
+
+	// amount * (100 - slippage)
+	tmp := new(big.Int).Mul(amount, percent)
+
+	return tmp.Div(tmp, big.NewInt(100))
 }
