@@ -31,10 +31,10 @@ func NewClient(
 
 func (cli *Client) GetRedUsers(ctx context.Context) ([]User, error) {
 	cli.log.Debug("V3 GetRedUsers  Starting...")
-	headers := map[string]string{
-		"k8scluster": "api-lp",
-	}
-	code, body, err := cli.cn.Get(ctx, "/api/v2/liquidations/red?start=0&count=10", headers)
+	//headers := map[string]string{
+	//	"k8scluster": "api-lp",
+	//}
+	code, body, err := cli.cn.Get(ctx, "/api/v2/liquidations/red?start=0&count=10", nil)
 	if err != nil {
 		return nil, err
 	}
