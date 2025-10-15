@@ -2,6 +2,10 @@ package jobs
 
 import (
 	"context"
+	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -13,8 +17,6 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"math/big"
-	"time"
 )
 
 func NewResetAuctionJob(
@@ -99,7 +101,7 @@ func (j *resetJob) Run(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				Monitor.Beat("resetAuctionJob")
+				Monitor.Beat(fmt.Sprintf("resetAuctionJob-%v", j.collateralAddr.String()))
 				auctionIds, err := j.clipper.List(&bind.CallOpts{})
 				if err != nil {
 					j.log.WithError(err).Error("failed to list auction ids from clipper")
