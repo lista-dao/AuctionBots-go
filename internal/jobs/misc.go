@@ -3,13 +3,14 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/sirupsen/logrus"
 	"log"
 	"math/big"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/sirupsen/logrus"
 )
 
 var WAD = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(18), nil)
@@ -120,6 +121,7 @@ func (h *HeartbeatMonitor) CheckStuckJobs() string {
 	defer h.mu.Unlock()
 	now := time.Now()
 	for id, t := range h.lastBeats {
+		//log.Printf(fmt.Sprintf("[hb list] %s", id))
 		if now.Sub(t) > 5*time.Minute {
 			return id
 		}

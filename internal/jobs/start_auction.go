@@ -2,6 +2,9 @@ package jobs
 
 import (
 	"context"
+	"fmt"
+	"time"
+
 	"github.com/dgraph-io/ristretto"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -14,7 +17,6 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"time"
 )
 
 func NewStartAuctionJob(
@@ -88,7 +90,7 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 		for {
 			select {
 			case <-ticker.C:
-				Monitor.Beat("startAuctionJob")
+				Monitor.Beat(fmt.Sprintf("startAuctionJob-%v", j.collateralAddr.String()))
 				users, err := j.analyticsCli.GetRedUsers(j.ctx)
 				if err != nil {
 					j.log.WithError(err).Error("failed to get red users")
