@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/ethereum/go-ethereum/common"
 	httpcon "github.com/lista-dao/AuctionBots-go/pkg/httpconn"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -54,15 +53,7 @@ func (cli *Client) GetRedUsers(ctx context.Context) ([]User, error) {
 }
 
 func (cli *Client) GetUserByAuctionId(ctx context.Context, aucId string, token string) (User, error) {
-	cli.log.Debug("V3 GetUserByAuctionId Starting DEBUG...")
-
-	if aucId == "5" && token == "0x4510aa2b3efd13bBFD78C9BfdE764F224ecc7f50" {
-		cli.log.Debug("GetUserByAuctionId returning mock user for testing")
-		return User{
-			UserAddress:    common.HexToAddress("0x637b935CbA030Aeb876eae07Aa7FF637166de4D6"),
-			ClipperAddress: common.HexToAddress("0x334e4f80cc2985d0f8196cc562dd8aeddda1b704"),
-		}, nil
-	}
+	cli.log.Debug("V3 GetUserByAuctionId Starting...")
 
 	code, body, err := cli.cn.Get(ctx, fmt.Sprintf("/api/v2/liquidations/auctionUser?auctionId=%v&token=%v", aucId, token), nil)
 	if err != nil {
