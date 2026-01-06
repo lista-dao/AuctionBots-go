@@ -5,6 +5,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"math/big"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
 	gosundheit "github.com/AppsFlyer/go-sundheit"
 	"github.com/AppsFlyer/go-sundheit/checks"
 	healthhttp "github.com/AppsFlyer/go-sundheit/http"
@@ -12,12 +19,6 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/jobs"
 	"github.com/lista-dao/AuctionBots-go/pkg/config"
 	"github.com/sirupsen/logrus"
-	"log"
-	"math/big"
-	"net/http"
-	"os"
-	"path/filepath"
-	"time"
 )
 
 var configFile = flag.String("config", "./config/config.yaml", "config file path")
@@ -65,6 +66,11 @@ func main() {
 
 	if cfg.FlushBuy.OneInchKey == "" {
 		logrus.Errorf("OneInchKey must be set, please set it in config.txt")
+		return
+	}
+
+	if cfg.LiquidMesh.ApiKey == "" {
+		logrus.Errorf("LiquidMeshKey must be set, please set it in config.txt")
 		return
 	}
 
