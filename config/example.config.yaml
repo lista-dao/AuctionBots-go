@@ -11,6 +11,13 @@ wallet:
 rpcNode:
   ws: ""
   http: ""
+liquidMesh:
+  url: "https://api.liquidmesh.io/v1"
+  chain: "bsc"
+  apiKey: ""
+  slippage: 500
+  router: "0x3d90f66B534Dd8482b181e24655A9e8265316BE9"
+  spender: "0x8157a9d65807521FBB8db8f37EEEcEfDD247E9B1"
 contract:
   interaction: "0xB68443Ee3e828baD1526b3e0Bdf2Dfc6b1975ec4"
   collaterals:

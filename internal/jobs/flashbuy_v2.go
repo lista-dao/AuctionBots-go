@@ -3,6 +3,15 @@ package jobs
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"math/big"
+
 	"github.com/1inch/1inch-sdk-go/constants"
 	"github.com/1inch/1inch-sdk-go/sdk-clients/aggregation"
 	"github.com/ethereum/go-ethereum"
@@ -17,16 +26,11 @@ import (
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/flashbuy"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/interfaces/ierc3156flashlender"
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/flash/liquidator"
-	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/stakemanager"
-	"github.com/lista-dao/AuctionBots-go/pkg/config"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/interaction"
+	"github.com/lista-dao/AuctionBots-go/internal/dao/v2/stakemanager"
 	"github.com/lista-dao/AuctionBots-go/internal/wallet"
+	"github.com/lista-dao/AuctionBots-go/pkg/config"
 	"github.com/sirupsen/logrus"
-	"math/big"
 )
 
 func NewBuyFlashAuctionV2Job(
@@ -275,7 +279,12 @@ func (j *buyFlashAuctionV2Job) processAuction(auctionID *big.Int) {
 		hayMax = big.NewInt(0).Add(big.NewInt(0), AUCTION_CAP)
 	}
 	//j.flashBuyAuction(log, auctionID, collatAmount, hayMax, status.Price)
-	j.flashLiquidate(log, auctionID, collatAmount, hayMax, status.Price, inchCollatAmount)
+
+	errFlash := j.flashLiquidateByLiquidMesh(log, auctionID, collatAmount, hayMax, status.Price, inchCollatAmount)
+	if errFlash != nil {
+		log.WithError(errFlash).Error("liquidMesh flashLiquidate failed, trying 1inch...")
+		j.flashLiquidate(log, auctionID, collatAmount, hayMax, status.Price, inchCollatAmount)
+	}
 	log.Debug("flash auction bought")
 }
 
@@ -430,4 +439,115 @@ func (j *buyFlashAuctionV2Job) flashLiquidate(log *logrus.Entry, auctionID *big.
 			}
 		}
 	}
+}
+
+func (j *buyFlashAuctionV2Job) flashLiquidateByLiquidMesh(log *logrus.Entry, auctionID *big.Int, collateralAmt *big.Int, borrowAmount, maxPrice *big.Int, inchCollAmt *big.Int) error {
+	opts, err := j.wallet.Opts(j.ctx)
+	if err != nil {
+		log.WithError(err).Error("failed to get tx opts")
+		return err
+	}
+	fb, ok := j.cfg.FlushBuy.Paths[strings.ToLower(j.collateralAddr.Hex())]
+	if !ok {
+		fb = config.FlushBuyConfig{
+			Received: j.collateralAddr.Hex(),
+			Scale:    "18",
+		}
+	}
+	scale := fb.Scale
+	if scale == "" || scale == "0" {
+		scale = "18" // default to 18 decimals
+	}
+
+	scaledInchAmt := new(big.Int).Set(inchCollAmt)
+	if scale != "18" {
+		if tokenDecimals, err := strconv.ParseInt(scale, 10, 64); err == nil && tokenDecimals < 18 {
+			divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(18-tokenDecimals), nil)
+			scaledInchAmt = new(big.Int).Div(inchCollAmt, divisor)
+		}
+	}
+	collateralReal := common.HexToAddress(fb.Received)
+
+	log.WithFields(logrus.Fields{
+		"swap.src":      collateralReal.Hex(),
+		"swap.dst":      j.hayAddr.Hex(),
+		"swap.amount":   scaledInchAmt.String(),
+		"swap.from":     j.cfg.Contract.Liquidator,
+		"swap.slippage": j.cfg.LiquidMesh.Slippage,
+	}).Info("Prepared liquidmesh swap params")
+	client := &LiquidMeshClient{
+		APIKey:  j.cfg.LiquidMesh.ApiKey,
+		BaseURL: fmt.Sprintf("%v/%v", j.cfg.LiquidMesh.Url, j.cfg.LiquidMesh.Chain),
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}
+	swapData, err := client.GetFlashOrder(j.ctx, FlashOrderParams{
+		UserAddress:     j.cfg.Contract.Liquidator,
+		InputToken:      collateralReal.Hex(),
+		OutputToken:     j.hayAddr.Hex(),
+		InputAmount:     scaledInchAmt.String(),
+		SlippageBps:     j.cfg.LiquidMesh.Slippage,
+		DisableSimulate: true,
+	})
+	if err != nil {
+		log.WithError(err).Error("Failed to get swap data")
+		return err
+	}
+	log.Infof("liquidMesh swap resp: %s\n", swapData["data"])
+
+	onePercent := new(big.Int).Div(new(big.Int).Mul(borrowAmount, big.NewInt(1)), big.NewInt(100))
+	borrowWithBuffer := new(big.Int).Add(borrowAmount, onePercent)
+	dataStr, ok := swapData["data"].(string)
+	if !ok || dataStr == "" {
+		return errors.New("invalid swap calldata from liquidmesh")
+	}
+	swapCallData, err := hexutil.Decode(dataStr)
+	if err != nil {
+		log.WithError(err).Error("invalid hex calldata")
+		return err
+	}
+	router := common.HexToAddress(j.cfg.LiquidMesh.Router)
+	spender := common.HexToAddress(j.cfg.LiquidMesh.Spender)
+	log.WithFields(logrus.Fields{
+		"auctionID":      auctionID,
+		"collateral":     j.collateralAddr.Hex(),
+		"inchCollAmt":    inchCollAmt.String(),
+		"maxPrice":       maxPrice.String(),
+		"collateralReal": collateralReal.Hex(),
+		"scaleInchAmt":   scaledInchAmt.String(),
+	}).Debug("Prepared flashLiquidate call")
+	tx, err := j.liquidator.FlashLiquidate0(
+		opts,
+		auctionID,
+		borrowWithBuffer,
+		j.collateralAddr,
+		collateralAmt,
+		maxPrice,
+		collateralReal,
+		router,
+		spender,
+		swapCallData,
+	)
+	if err != nil {
+		log.WithError(err).Error("failed to send flashLiquidate tx")
+		return err
+	}
+	log = log.WithField("tx_hash", tx.Hash().String())
+
+	if j.withWait {
+		receipt, err := bind.WaitMined(j.ctx, j.ethCli, tx)
+		if err != nil {
+			log.WithError(err).Error("failed to wait for mint")
+			return err
+		}
+
+		if receipt.Status == types.ReceiptStatusFailed {
+			if _, err := getRevertReason(j.ctx, j.ethCli, tx, receipt); err != nil {
+				log.WithError(err).Error("tx failed")
+				return err
+			}
+		}
+	}
+	return nil
 }

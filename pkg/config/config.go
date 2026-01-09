@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/subosito/gotenv"
 	"path/filepath"
 	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/subosito/gotenv"
 
 	"github.com/spf13/viper"
 )
@@ -22,6 +23,14 @@ type Config struct {
 	RpcNode struct {
 		Http string `mapstructure:"http"`
 	} `mapstructure:"rpcNode"`
+	LiquidMesh struct {
+		Url      string `mapstructure:"url"`
+		Chain    string `mapstructure:"chain"`
+		ApiKey   string `mapstructure:"apiKey"`
+		Slippage int64  `mapstructure:"slippage"`
+		Router   string `mapstructure:"router"`
+		Spender  string `mapstructure:"spender"`
+	} `mapstructure:"liquidMesh"`
 	Contract struct {
 		Interaction  string            `mapstructure:"interaction"`
 		Collaterals  []string          `mapstructure:"collaterals"`
