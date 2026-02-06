@@ -180,7 +180,7 @@ func (j *buyAuctionJob) init() {
 
 func (j *buyAuctionJob) Run(ctx context.Context) {
 	j.init()
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	go func() {
 		j.log.Debug("start")
 

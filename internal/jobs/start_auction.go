@@ -83,7 +83,7 @@ func (j *startAuctionJob) Run(ctx context.Context) {
 	if err != nil {
 		panic(err)
 	}
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(30 * time.Second)
 	go func() {
 		j.log.Debug("start")
 

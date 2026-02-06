@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
+	"time"
 
 	httpcon "github.com/lista-dao/AuctionBots-go/pkg/httpconn"
 	"github.com/pkg/errors"
@@ -15,6 +17,10 @@ import (
 type Client struct {
 	cn  *httpcon.Connector
 	log *logrus.Logger
+
+	mu          sync.Mutex
+	cachedUsers []User
+	cachedAt    time.Time
 }
 
 func NewClient(
@@ -30,10 +36,17 @@ func NewClient(
 }
 
 func (cli *Client) GetRedUsers(ctx context.Context) ([]User, error) {
-	cli.log.Debug("V3 GetRedUsers  Starting...")
-	//headers := map[string]string{
-	//	"k8scluster": "api-lp",
-	//}
+	cli.mu.Lock()
+	if time.Since(cli.cachedAt) < 3*time.Second && cli.cachedUsers != nil {
+		users := cli.cachedUsers
+		cli.mu.Unlock()
+		cli.log.Debug("V3 GetRedUsers hit cache")
+		return users, nil
+	}
+	cli.mu.Unlock()
+
+	cli.log.Debug("V3 GetRedUsers Starting...")
+
 	code, body, err := cli.cn.Get(ctx, "/api/v2/liquidations/red?start=0&count=10", nil)
 	if err != nil {
 		return nil, err
@@ -41,10 +54,14 @@ func (cli *Client) GetRedUsers(ctx context.Context) ([]User, error) {
 
 	if *code == http.StatusOK {
 		var resp CommonDataResp
-
 		if err := json.Unmarshal(body, &resp); err != nil {
 			return nil, errors.Wrapf(err, "failed to unmarshal body %s", string(body))
 		}
+
+		cli.mu.Lock()
+		cli.cachedUsers = resp.Data.Users
+		cli.cachedAt = time.Now()
+		cli.mu.Unlock()
 
 		return resp.Data.Users, nil
 	}

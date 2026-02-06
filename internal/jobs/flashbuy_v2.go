@@ -164,7 +164,7 @@ func (j *buyFlashAuctionV2Job) init() {
 
 func (j *buyFlashAuctionV2Job) Run(ctx context.Context) {
 	j.init()
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(15 * time.Second)
 	go func() {
 		j.log.Debug("start")
 

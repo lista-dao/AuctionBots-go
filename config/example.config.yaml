@@ -58,7 +58,8 @@ settings:
   maxPricePercentage: 88
 analytics:
   url: "https://api.prod.helio.money/"
-  lista-api-url: "https://api.lista.org/"
+#  lista-api-url: "https://api.lista.org/"
+  lista-api-url: "http://internal-lista-prod-api-alb-1102495094.ap-southeast-1.elb.amazonaws.com/"
 flushBuy:
   slip: 500
   oneInchSlip: 5
